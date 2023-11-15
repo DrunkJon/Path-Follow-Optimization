@@ -16,7 +16,9 @@ class Obstacle:
         self.finished = False
 
     def render(self, surface: pygame.Surface):
-        pygame.draw.polygon(surface, "black", [array_to_vec(a) for a in self.corners])
+        points = [array_to_vec(a) for a in self.corners]
+        pygame.draw.polygon(surface, "grey", points)
+        pygame.draw.aalines(surface, "black", True, points)
 
     def get_lines(self):
         # returns corner and direction (not normed!) to next corner for each line of obstacle

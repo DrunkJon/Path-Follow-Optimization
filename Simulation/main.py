@@ -43,12 +43,12 @@ def render_window(surface: pygame.Surface, state: np.array, v = 25, dt = 1):
 
 # environment setup
 ENV = Environment()
-ENV.add_corner(np.array([50, 150]))
-ENV.add_corner(np.array([175, 100]))
-ENV.add_corner(np.array([290, 300]))
-ENV.add_corner(np.array([160, 350]))
-ENV.add_corner(np.array([140, 150]))
-ENV.add_corner(np.array([20, 200]))
+ENV.add_corner(np.array([150, 150]))
+ENV.add_corner(np.array([575, 100]))
+ENV.add_corner(np.array([1090, 300]))
+ENV.add_corner(np.array([660, 350]))
+ENV.add_corner(np.array([540, 150]))
+ENV.add_corner(np.array([120, 200]))
 ENV.finish_obstacle()
 
 while True:
@@ -63,10 +63,10 @@ while True:
     screen.fill("white")
 
     ENV.render(screen)
-    pygame.draw.circle(screen, "red", player_pos, 15)
+    ENV.get_distance_scans(np.array(robo_state[:2]), robo_state[2], render_surface=screen)
+    pygame.draw.circle(screen, "black", player_pos, 15)
     line_end = rotate(np.array([15,0]), robo_state[2])
     pygame.draw.aaline(screen, "white", player_pos, pygame.Vector2(player_pos.x + line_end[0], player_pos. y + line_end[1]))
-    ENV.get_distance_scans(np.array(robo_state[:2]), robo_state[2], render_surface=screen)
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
@@ -80,7 +80,7 @@ while True:
 
     robo_state = move_turtle(robo_state, v, w, dt)
     player_pos = array_to_vec(robo_state)
-    print(f"v: {v} w:{w}")
+    # print(f"v: {v} w:{w}")
 
     render_window(screen, robo_state, v, 5)
 
@@ -90,6 +90,6 @@ while True:
     # limits FPS to 60
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
-    dt = clock.tick(60) / 1000
+    dt = clock.tick(30) / 1000
 
 pygame.quit()
