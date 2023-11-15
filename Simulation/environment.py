@@ -16,10 +16,14 @@ class Obstacle:
         self.finished = False
 
     def render(self, surface: pygame.Surface):
-        points = [array_to_vec(a) for a in self.corners]
-        if self.finished:
-            pygame.draw.polygon(surface, "grey", points)
-        pygame.draw.aalines(surface, "black", self.finished, points)
+        if len(self.corners) >= 2:
+            points = [array_to_vec(a) for a in self.corners]
+            if self.finished:
+                pygame.draw.polygon(surface, "grey", points)
+            pygame.draw.aalines(surface, "black", self.finished, points)
+        else:
+            for corner in self.corners:
+                pygame.draw.circle(surface, "black", array_to_vec(corner), 5)
 
     def get_lines(self):
         # returns corner and direction (not normed!) to next corner for each line of obstacle
@@ -53,7 +57,8 @@ class Environment:
     def render(self, surface: pygame.Surface):
         for ob in self.obstacles:
             ob.render(surface)
-        self.cur_ob.render(surface)
+        if self.cur_ob != None:
+            self.cur_ob.render(surface)
         self.render_robo(surface)
 
     def render_robo(self, surface: pygame.Surface):
@@ -65,6 +70,15 @@ class Environment:
 
     def update_robo_state(self, v, w, dt):
         self.robo_state = move_turtle(self.robo_state, v, w, dt)
+
+    def get_robo_angle(self) -> float:
+        return self.robo_state[2]
+    
+    def get_robo_pos(self) -> np.ndarray:
+        return self.robo_state[:2]
+
+    def set_robo_state(self, state:np.ndarray):
+        self.robo_state = state
 
     def get_distance_scans(self, render_surface: pygame.Surface = None):
         robo_pos = self.robo_state[:2]

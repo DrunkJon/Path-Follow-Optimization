@@ -2,6 +2,8 @@ import pygame
 import numpy as np
 from Turtlebot_Kinematics import *
 from environment import *
+from ui import MouseMode, mouse_action
+
 
 # pygame setup
 pygame.init()
@@ -13,6 +15,19 @@ dt = 0
 display_center = np.array([screen.get_width() / 2, screen.get_height() / 2])
 v = 0
 w = 0
+MODE = MouseMode.Robot
+old_presses = (False, False, False)
+
+def mode_str():
+    if MODE == MouseMode.Robot:
+        return "Robot"
+    elif MODE == MouseMode.Object:
+        return "Object"
+    elif MODE == MouseMode.Goal:
+        return "Goal"
+    else:
+        raise ValueError("variable mode is not of enum type MouseMode")
+
 
 def clamp(val, min= None, max= None):
     if min != None and val < min:
@@ -76,8 +91,23 @@ while True:
         w = clamp(w + np.pi / 12 * dt, -np.pi / 8, np.pi / 8)
     if keys[pygame.K_d]:
         w = clamp(w - np.pi / 12 * dt, -np.pi / 8, np.pi / 8)
+    if keys[pygame.K_F1]:
+        MODE = MouseMode.Robot
+    elif keys[pygame.K_F2]:
+        MODE = MouseMode.Object
+    elif keys[pygame.K_F3]:
+        MODE = MouseMode.Goal
+
+    presses = pygame.mouse.get_pressed(3)
+    clicks = tuple(new and not old for new, old in zip(presses, old_presses))
+    mouse_action(clicks, screen, MODE, ENV)
+    old_presses = presses
 
     ENV.update_robo_state(v, w, dt)
+    font = pygame.font.SysFont(None, 24)
+    img = font.render(f'Mode:{mode_str()}', True, "black")
+    screen.blit(img, (20, 20))
+
     # print(f"v: {v} w:{w}")
 
     # render_window(screen, robo_state, v, 5)
