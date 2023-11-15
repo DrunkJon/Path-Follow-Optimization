@@ -11,10 +11,8 @@ running = True
 dt = 0
 
 display_center = np.array([screen.get_width() / 2, screen.get_height() / 2])
-player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 v = 0
 w = 0
-robo_state = np.array([display_center[0],display_center[1],0])
 
 def clamp(val, min= None, max= None):
     if min != None and val < min:
@@ -51,6 +49,10 @@ ENV.add_corner(np.array([540, 150]))
 ENV.add_corner(np.array([120, 200]))
 ENV.finish_obstacle()
 
+ENV.add_corner(np.array([100, 650]))
+ENV.add_corner(np.array([350, 600]))
+ENV.add_corner(np.array([220, 700]))
+
 while True:
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -63,11 +65,8 @@ while True:
     screen.fill("white")
 
     ENV.render(screen)
-    ENV.get_distance_scans(np.array(robo_state[:2]), robo_state[2], render_surface=screen)
-    pygame.draw.circle(screen, "black", player_pos, 15)
-    line_end = rotate(np.array([15,0]), robo_state[2])
-    pygame.draw.aaline(screen, "white", player_pos, pygame.Vector2(player_pos.x + line_end[0], player_pos. y + line_end[1]))
-
+    ENV.get_distance_scans(render_surface=screen)
+    
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
         v = clamp(v + 5 * dt, -25, 25)
@@ -78,11 +77,10 @@ while True:
     if keys[pygame.K_d]:
         w = clamp(w - np.pi / 12 * dt, -np.pi / 8, np.pi / 8)
 
-    robo_state = move_turtle(robo_state, v, w, dt)
-    player_pos = array_to_vec(robo_state)
+    ENV.update_robo_state(v, w, dt)
     # print(f"v: {v} w:{w}")
 
-    render_window(screen, robo_state, v, 5)
+    # render_window(screen, robo_state, v, 5)
 
     # flip() the display to put your work on screen
     pygame.display.flip()

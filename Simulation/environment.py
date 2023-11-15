@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 import pygame
-from Turtlebot_Kinematics import rotate
+from Turtlebot_Kinematics import rotate, move_turtle
 
 
 def array_to_vec(vec: np.array) -> pygame.Vector2:
@@ -17,8 +17,9 @@ class Obstacle:
 
     def render(self, surface: pygame.Surface):
         points = [array_to_vec(a) for a in self.corners]
-        pygame.draw.polygon(surface, "grey", points)
-        pygame.draw.aalines(surface, "black", True, points)
+        if self.finished:
+            pygame.draw.polygon(surface, "grey", points)
+        pygame.draw.aalines(surface, "black", self.finished, points)
 
     def get_lines(self):
         # returns corner and direction (not normed!) to next corner for each line of obstacle
@@ -47,25 +48,41 @@ class Environment:
     def __init__(self) -> None:
         self.obstacles = []
         self.cur_ob = None
+        self.robo_state = np.array([640,360,0])
 
     def render(self, surface: pygame.Surface):
         for ob in self.obstacles:
             ob.render(surface)
+        self.cur_ob.render(surface)
+        self.render_robo(surface)
 
-    def get_distance_scans(self, agent_pos: np.ndarray, agent_angle: float, render_surface: pygame.Surface = None):
+    def render_robo(self, surface: pygame.Surface):
+        robo_vec = array_to_vec(self.robo_state)
+        pygame.draw.circle(surface, "black", robo_vec, 15)
+        direction_delta = rotate(np.array([15,0]), self.robo_state[2])
+        line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
+        pygame.draw.aaline(surface, "white", robo_vec, line_end)
+
+    def update_robo_state(self, v, w, dt):
+        self.robo_state = move_turtle(self.robo_state, v, w, dt)
+
+    def get_distance_scans(self, render_surface: pygame.Surface = None):
+        robo_pos = self.robo_state[:2]
+        robo_angle = self.robo_state[2]
         x_axis = np.array([1,0])
-        angles = np.linspace(agent_angle, np.pi * 2 + agent_angle, 360)
+        angles = np.linspace(robo_angle, np.pi * 2 + robo_angle, 360)
         directions = [rotate(x_axis, angle) for angle in angles]
-        distances = [self.scan(agent_pos, direction) for direction in directions]
+        distances = [self.scan(robo_pos, direction) for direction in directions]
         if render_surface != None:
             for i, (dist, dire) in enumerate(zip(distances, directions)):
                 if i % 3 != 0: continue
-                cords = agent_pos + min(dist, 500) * dire
-                pygame.draw.aaline(render_surface, "red" if i != 0 else "blue", array_to_vec(agent_pos), array_to_vec(cords))
+                cords = robo_pos + min(dist, 500) * dire
+                pygame.draw.aaline(render_surface, "red" if i != 0 else "blue", array_to_vec(robo_pos), array_to_vec(cords))
+                self.render_robo(render_surface)
         return distances
     
-    def scan(self, agent_pos: np.ndarray, direction: np.ndarray):
-        return min([ob.scan(agent_pos, direction) for ob in self.obstacles])
+    def scan(self, robo_pos: np.ndarray, direction: np.ndarray):
+        return min([ob.scan(robo_pos, direction) for ob in self.obstacles])
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
