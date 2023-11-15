@@ -4,8 +4,11 @@ import pygame
 from Turtlebot_Kinematics import rotate, move_turtle
 
 
-def array_to_vec(vec: np.array) -> pygame.Vector2:
+def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
     return pygame.Vector2(vec[0], vec[1])
+
+def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
+    return np.arccos((v @ u) / (np.linalg.norm(v) * np.linalg.norm(u)))
 
 
 class Obstacle:
@@ -48,6 +51,7 @@ class Obstacle:
 class Environment:
     obstacles: List[Obstacle]
     cur_ob: Obstacle
+    robo_state: np.ndarray
 
     def __init__(self) -> None:
         self.obstacles = []
@@ -67,6 +71,12 @@ class Environment:
         direction_delta = rotate(np.array([15,0]), self.robo_state[2])
         line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
         pygame.draw.aaline(surface, "white", robo_vec, line_end)
+
+    def turn_robo_towards(self, point: np.ndarray):
+        if (point != self.get_robo_pos()).any():
+            delta = point - self.get_robo_pos()
+            angle = vec_angle(np.array([1,0]), delta)
+            self.robo_state[2] = angle if delta[1] <= 0 else np.pi * 2 -angle
 
     def update_robo_state(self, v, w, dt):
         self.robo_state = move_turtle(self.robo_state, v, w, dt)

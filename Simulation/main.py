@@ -80,17 +80,17 @@ while True:
     screen.fill("white")
 
     ENV.render(screen)
-    ENV.get_distance_scans(render_surface=screen)
+    # ENV.get_distance_scans(render_surface=screen)
     
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
-        v = clamp(v + 5 * dt, -25, 25)
+        v = clamp(v + 15 * dt, -75, 75)
     if keys[pygame.K_s]:
-        v = clamp(v - 5 * dt, -25, 25)
+        v = clamp(v - 15 * dt, -75, 75)
     if keys[pygame.K_a]:
-        w = clamp(w + np.pi / 12 * dt, -np.pi / 8, np.pi / 8)
+        w = clamp(w + np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
     if keys[pygame.K_d]:
-        w = clamp(w - np.pi / 12 * dt, -np.pi / 8, np.pi / 8)
+        w = clamp(w - np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
     if keys[pygame.K_F1]:
         MODE = MouseMode.Robot
     elif keys[pygame.K_F2]:
@@ -100,7 +100,7 @@ while True:
 
     presses = pygame.mouse.get_pressed(3)
     clicks = tuple(new and not old for new, old in zip(presses, old_presses))
-    mouse_action(clicks, screen, MODE, ENV)
+    mouse_action(clicks, presses, MODE, ENV)
     old_presses = presses
 
     ENV.update_robo_state(v, w, dt)
@@ -118,6 +118,6 @@ while True:
     # limits FPS to 60
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
-    dt = clock.tick(30) / 1000
+    dt = clock.tick(60) / 1000
 
 pygame.quit()
