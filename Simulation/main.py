@@ -3,6 +3,7 @@ import numpy as np
 from Turtlebot_Kinematics import *
 from environment import *
 from ui import MouseMode, mouse_action
+from os import listdir
 
 
 # pygame setup
@@ -17,6 +18,9 @@ v = 0
 w = 0
 MODE = MouseMode.Robot
 old_presses = (False, False, False)
+target_fps = 20
+dt = 1 / target_fps
+font = pygame.font.SysFont(None, 24)
 
 def mode_str():
     if MODE == MouseMode.Robot:
@@ -55,18 +59,32 @@ def render_window(surface: pygame.Surface, state: np.array, v = 25, dt = 1):
     pygame.draw.aaline(surface, "blue", last_point, first_point)
 
 # environment setup
-ENV = Environment()
-ENV.add_corner(np.array([150, 150]))
-ENV.add_corner(np.array([575, 100]))
-ENV.add_corner(np.array([1090, 300]))
-ENV.add_corner(np.array([660, 350]))
-ENV.add_corner(np.array([540, 150]))
-ENV.add_corner(np.array([120, 200]))
+env_files = sorted(listdir("levels"), reverse=True)
+std_env = None
+if std_env != None and std_env in env_files:
+    print(f"loading {std_env}")
+    with open(f"./levels/{std_env}", "r") as file:
+        json_str = file.read()
+        ENV = Environment.from_json(json_str)
+elif len(env_files) >= 1:
+    print(f"loading {env_files[0]}")
+    with open(f"./levels/{env_files[0]}", "r") as file:
+        json_str = file.read()
+        ENV = Environment.from_json(json_str)
+else:
+    print("loading new ENV")
+    ENV = Environment()
+"""ENV.add_corner(np.array([150, 150], dtype=float))
+ENV.add_corner(np.array([575, 100], dtype=float))
+ENV.add_corner(np.array([1090, 300], dtype=float))
+ENV.add_corner(np.array([660, 350], dtype=float))
+ENV.add_corner(np.array([540, 150], dtype=float))
+ENV.add_corner(np.array([120, 200], dtype=float))
 ENV.finish_obstacle()
 
-ENV.add_corner(np.array([100, 650]))
-ENV.add_corner(np.array([350, 600]))
-ENV.add_corner(np.array([220, 700]))
+ENV.add_corner(np.array([100, 650], dtype=float))
+ENV.add_corner(np.array([350, 600], dtype=float))
+ENV.add_corner(np.array([220, 700], dtype=float))"""
 
 while True:
     # poll for events
@@ -83,9 +101,11 @@ while True:
     # ENV.get_distance_scans(render_surface=screen)
     
     keys = pygame.key.get_pressed()
+    if keys[pygame.K_LCTRL] and keys[pygame.K_s]:
+        ENV.to_json()
     if keys[pygame.K_w]:
         v = clamp(v + 15 * dt, -75, 75)
-    if keys[pygame.K_s]:
+    if (not keys[pygame.K_LCTRL]) and keys[pygame.K_s]:
         v = clamp(v - 15 * dt, -75, 75)
     if keys[pygame.K_a]:
         w = clamp(w + np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
@@ -104,10 +124,13 @@ while True:
     old_presses = presses
 
     ENV.update_robo_state(v, w, dt)
-    font = pygame.font.SysFont(None, 24)
+
     img = font.render(f'Mode:{mode_str()}', True, "black")
     screen.blit(img, (20, 20))
 
+    fps = round(1 / (clock.tick(target_fps) / 1000), 1)
+    img = font.render(f'fps:{fps} | target:{target_fps}', True, "black")
+    screen.blit(img, (1260 - img.get_width(), 20))
     # print(f"v: {v} w:{w}")
 
     # render_window(screen, robo_state, v, 5)
@@ -118,6 +141,6 @@ while True:
     # limits FPS to 60
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
-    dt = clock.tick(60) / 1000
+    
 
 pygame.quit()

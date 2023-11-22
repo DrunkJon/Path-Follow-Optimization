@@ -2,6 +2,8 @@ import numpy as np
 from typing import List
 import pygame
 from Turtlebot_Kinematics import rotate, move_turtle
+import json
+import time
 
 
 def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
@@ -13,24 +15,34 @@ def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
 
 class Obstacle:
     corners: List[np.ndarray]
+    offset: np.ndarray
 
-    def __init__(self) -> None:
-        self.corners = []
+    def __init__(self, offset:np.ndarray) -> None:
+        self.offset = offset
+        self.corners = [np.zeros(2, dtype=float)]
         self.finished = False
+
+    def add_corner(self, corner: np.ndarray):
+        self.corners.append(corner - self.offset)
+
+    def translate_corners(self):
+        for corner in self.corners:
+            yield corner + self.offset
 
     def render(self, surface: pygame.Surface):
         if len(self.corners) >= 2:
-            points = [array_to_vec(a) for a in self.corners]
+            points = [array_to_vec(a) for a in self.translate_corners()]
             if self.finished:
                 pygame.draw.polygon(surface, "grey", points)
             pygame.draw.aalines(surface, "black", self.finished, points)
         else:
-            for corner in self.corners:
+            for corner in self.translate_corners():
                 pygame.draw.circle(surface, "black", array_to_vec(corner), 5)
 
     def get_lines(self):
         # returns corner and direction (not normed!) to next corner for each line of obstacle
-        return [(c, c - self.corners[(i+1)%len(self.corners)])  for i, c in enumerate(self.corners)]
+        trans_corn = self.translate_corners()
+        return [(c, c - trans_corn[(i+1)%len(trans_corn)])  for i, c in enumerate(trans_corn)]
 
     def scan(self, agent_pos: np.ndarray, direction: np.ndarray):
         hits = [np.Infinity]
@@ -46,17 +58,32 @@ class Obstacle:
             if x[0] >= 0 and 0 <= x[1] <= 1:
                 hits.append(x[0])
         return min(hits)
+    
+    def to_dict(self):
+        return {
+            "offset": list(self.offset),
+            "corners": list(list(c) for c in self.corners)
+        }
+
+    @staticmethod
+    def from_dict(d:dict) -> "Obstacle":
+        new_obs = Obstacle(np.array(d["offset"]))
+        new_obs.corners = list([np.array(c) for c in d["corners"]])
+        new_obs.finished = True
+        return new_obs
 
 
 class Environment:
     obstacles: List[Obstacle]
     cur_ob: Obstacle
     robo_state: np.ndarray
+    goal_pos: np.ndarray
 
     def __init__(self) -> None:
         self.obstacles = []
         self.cur_ob = None
-        self.robo_state = np.array([640,360,0])
+        self.robo_state = np.array([640,360,0], dtype=float)
+        self.goal_pos = np.array([1260, 700], dtype=float)
 
     def render(self, surface: pygame.Surface):
         for ob in self.obstacles:
@@ -64,6 +91,7 @@ class Environment:
         if self.cur_ob != None:
             self.cur_ob.render(surface)
         self.render_robo(surface)
+        self.render_goal(surface)
 
     def render_robo(self, surface: pygame.Surface):
         robo_vec = array_to_vec(self.robo_state)
@@ -71,6 +99,10 @@ class Environment:
         direction_delta = rotate(np.array([15,0]), self.robo_state[2])
         line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
         pygame.draw.aaline(surface, "white", robo_vec, line_end)
+
+    def render_goal(self, surface: pygame.Surface):
+        pygame.draw.circle(surface, "yellow", array_to_vec(self.goal_pos), 10)
+        pygame.draw.circle(surface, "black", array_to_vec(self.goal_pos), 10, 2)
 
     def turn_robo_towards(self, point: np.ndarray):
         if (point != self.get_robo_pos()).any():
@@ -89,6 +121,9 @@ class Environment:
 
     def set_robo_state(self, state:np.ndarray):
         self.robo_state = state
+
+    def set_goal_pos(self, pos: np.ndarray):
+        self.goal_pos = pos
 
     def get_distance_scans(self, render_surface: pygame.Surface = None):
         robo_pos = self.robo_state[:2]
@@ -110,11 +145,29 @@ class Environment:
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
-            self.cur_ob = Obstacle()
-        self.cur_ob.corners.append(corner)
+            self.cur_ob = Obstacle(corner)
+        else:
+            self.cur_ob.add_corner(corner)
 
     def finish_obstacle(self):
         self.cur_ob.finished = True
         self.obstacles.append(self.cur_ob)
         self.cur_ob = None
+
+    def to_json(self):
+        data = {
+            "robo_state": list(self.robo_state),
+            "goal_pos": list(self.goal_pos),
+            "obstacles": list(ob.to_dict() for ob in self.obstacles)
+        }
+        with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
+            file.write(json.dumps(data, indent=2))
+
+    def from_json(json_string:str) -> "Environment":
+        data = json.loads(json_string)
+        new_env = Environment()
+        new_env.robo_state = np.array(data["robo_state"])
+        new_env.goal_pos = np.array(data["goal_pos"])
+        new_env.obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
+        return new_env
     

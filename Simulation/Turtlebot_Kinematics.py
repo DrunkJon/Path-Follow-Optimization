@@ -21,6 +21,6 @@ def move_turtle(state: np.array, v:float, w:float, t:float) -> np.array:
     else:
         return np.array([
             x + np.cos(theta) * v * t,
-            y + np.sin(theta) * v * t,
+            y - np.sin(theta) * v * t,
             theta
         ])

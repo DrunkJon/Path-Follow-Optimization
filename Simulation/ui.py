@@ -15,11 +15,14 @@ def mouse_action(clicks, presses, mode: MouseMode, env: Environment):
     x, y = pygame.mouse.get_pos()
     if mode == MouseMode.Robot:
         if left_pressed:
-            env.set_robo_state(np.array([x, y, env.get_robo_angle()]))
+            env.set_robo_state(np.array([x, y, env.get_robo_angle()], dtype=float))
         if right_pressed:
-            env.turn_robo_towards(np.array([x, y]))
+            env.turn_robo_towards(np.array([x, y], dtype=float))
     if mode == MouseMode.Object:
         if left_clicked:
-            env.add_corner(np.array([x, y]))
+            env.add_corner(np.array([x, y], dtype=float))
         if right_clicked:
             env.finish_obstacle()
+    if mode == MouseMode.Goal:
+        if left_pressed:
+            env.set_goal_pos(np.array([x, y], dtype=float))
