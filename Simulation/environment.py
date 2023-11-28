@@ -79,19 +79,44 @@ class Environment:
     robo_state: np.ndarray
     goal_pos: np.ndarray
 
-    def __init__(self) -> None:
+    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.obstacles = []
         self.cur_ob = None
-        self.robo_state = np.array([640,360,0], dtype=float)
-        self.goal_pos = np.array([1260, 700], dtype=float)
+        self.robo_state = robo_state
+        self.goal_pos = goal_pos
+        self.record = record
+        if record:
+            self.robo_record = [tuple(self.robo_state)]
+            self.goal_record = [tuple(self.goal_pos)]
+        
+    def step(self, v,w,dt, surface=None):
+        self.update_robo_state(v,w,dt)
+        if surface != None:
+            self.render(surface)
+        self.record_state()
+        
+    def finish_up(self, data_path = None):
+        if data_path == None:
+            data_path = f"./data/{'_'.join(map(str,time.localtime()))}.json"
+        data = {
+            "robo_state": self.robo_record,
+            "goal_pos": self.goal_record
+        }
+        with open(data_path, "w") as file:
+            json.dump(data, file)
+            
+    def record_state(self):
+        if self.record:
+            self.robo_record.append(tuple(self.robo_state))
+            self.goal_record.append(tuple(self.goal_pos))
 
     def render(self, surface: pygame.Surface):
         for ob in self.obstacles:
             ob.render(surface)
         if self.cur_ob != None:
             self.cur_ob.render(surface)
-        self.render_robo(surface)
         self.render_goal(surface)
+        self.render_robo(surface)
 
     def render_robo(self, surface: pygame.Surface):
         robo_vec = array_to_vec(self.robo_state)
@@ -163,11 +188,9 @@ class Environment:
         with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
             file.write(json.dumps(data, indent=2))
 
-    def from_json(json_string:str) -> "Environment":
+    def from_json(json_string:str, record=False) -> "Environment":
         data = json.loads(json_string)
-        new_env = Environment()
-        new_env.robo_state = np.array(data["robo_state"])
-        new_env.goal_pos = np.array(data["goal_pos"])
+        new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), record)
         new_env.obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
         return new_env
     

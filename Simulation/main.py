@@ -11,7 +11,6 @@ pygame.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
 running = True
-dt = 0
 
 display_center = np.array([screen.get_width() / 2, screen.get_height() / 2])
 v = 0
@@ -60,31 +59,21 @@ def render_window(surface: pygame.Surface, state: np.array, v = 25, dt = 1):
 
 # environment setup
 env_files = sorted(listdir("levels"), reverse=True)
-std_env = None
-if std_env != None and std_env in env_files:
+std_env = "empty"
+record = False
+if std_env != None and f"{std_env}.json" in env_files:
     print(f"loading {std_env}")
-    with open(f"./levels/{std_env}", "r") as file:
+    with open(f"./levels/{std_env}.json", "r") as file:
         json_str = file.read()
-        ENV = Environment.from_json(json_str)
+        ENV = Environment.from_json(json_str, record)
 elif len(env_files) >= 1:
     print(f"loading {env_files[0]}")
     with open(f"./levels/{env_files[0]}", "r") as file:
         json_str = file.read()
-        ENV = Environment.from_json(json_str)
+        ENV = Environment.from_json(json_str, record)
 else:
     print("loading new ENV")
-    ENV = Environment()
-"""ENV.add_corner(np.array([150, 150], dtype=float))
-ENV.add_corner(np.array([575, 100], dtype=float))
-ENV.add_corner(np.array([1090, 300], dtype=float))
-ENV.add_corner(np.array([660, 350], dtype=float))
-ENV.add_corner(np.array([540, 150], dtype=float))
-ENV.add_corner(np.array([120, 200], dtype=float))
-ENV.finish_obstacle()
-
-ENV.add_corner(np.array([100, 650], dtype=float))
-ENV.add_corner(np.array([350, 600], dtype=float))
-ENV.add_corner(np.array([220, 700], dtype=float))"""
+    ENV = Environment(np.array([640,360,0], dtype=float), np.array([1260, 700], dtype=float), record)
 
 while True:
     # poll for events
@@ -97,10 +86,11 @@ while True:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("white")
 
-    ENV.render(screen)
     # ENV.get_distance_scans(render_surface=screen)
     
     keys = pygame.key.get_pressed()
+    if keys[pygame.K_ESCAPE]:
+        break
     if keys[pygame.K_LCTRL] and keys[pygame.K_s]:
         ENV.to_json()
     if keys[pygame.K_w]:
@@ -123,7 +113,7 @@ while True:
     mouse_action(clicks, presses, MODE, ENV)
     old_presses = presses
 
-    ENV.update_robo_state(v, w, dt)
+    ENV.step(v, w, dt, screen)
 
     img = font.render(f'Mode:{mode_str()}', True, "black")
     screen.blit(img, (20, 20))
@@ -142,5 +132,5 @@ while True:
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
     
-
+ENV.finish_up()
 pygame.quit()
