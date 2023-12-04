@@ -4,6 +4,7 @@ from Turtlebot_Kinematics import *
 from environment import *
 from ui import MouseMode, mouse_action
 from os import listdir
+from simple_controller import controll
 
 
 # pygame setup
@@ -59,7 +60,7 @@ def render_window(surface: pygame.Surface, state: np.array, v = 25, dt = 1):
 
 # environment setup
 env_files = sorted(listdir("levels"), reverse=True)
-std_env = "empty"
+std_env = "simple"
 record = False
 if std_env != None and f"{std_env}.json" in env_files:
     print(f"loading {std_env}")
@@ -107,6 +108,8 @@ while True:
         MODE = MouseMode.Object
     elif keys[pygame.K_F3]:
         MODE = MouseMode.Goal
+
+    v,w = controll(ENV)
 
     presses = pygame.mouse.get_pressed(3)
     clicks = tuple(new and not old for new, old in zip(presses, old_presses))

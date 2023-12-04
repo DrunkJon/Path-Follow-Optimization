@@ -26,8 +26,7 @@ class Obstacle:
         self.corners.append(corner - self.offset)
 
     def translate_corners(self):
-        for corner in self.corners:
-            yield corner + self.offset
+        return list([corner + self.offset for corner in self.corners])
 
     def render(self, surface: pygame.Surface):
         if len(self.corners) >= 2:
@@ -102,6 +101,8 @@ class Environment:
             "robo_state": self.robo_record,
             "goal_pos": self.goal_record
         }
+        # TODO: use pandas
+        # Feather HDL5, Parquet, SQL (saves datatype)
         with open(data_path, "w") as file:
             json.dump(data, file)
             
