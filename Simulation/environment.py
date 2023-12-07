@@ -4,6 +4,7 @@ import pygame
 from Turtlebot_Kinematics import rotate, move_turtle
 import json
 import time
+import pandas as pd
 
 
 def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
@@ -77,6 +78,7 @@ class Environment:
     cur_ob: Obstacle
     robo_state: np.ndarray
     goal_pos: np.ndarray
+    data: pd.DataFrame
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.obstacles = []
@@ -85,31 +87,40 @@ class Environment:
         self.goal_pos = goal_pos
         self.record = record
         if record:
-            self.robo_record = [tuple(self.robo_state)]
-            self.goal_record = [tuple(self.goal_pos)]
+            self.time = 0.0
+            self.data = pd.DataFrame({
+                "robo_x" : self.robo_state[0],
+                "robo_y" : self.robo_state[1],
+                "robo_deg" : self.robo_state[2],
+                "goal_x" : self.goal_pos[0],
+                "goal_y" : self.goal_pos[1],
+                },
+                index = [self.time]
+            )
         
     def step(self, v,w,dt, surface=None):
         self.update_robo_state(v,w,dt)
         if surface != None:
             self.render(surface)
-        self.record_state()
+        self.record_state(dt)
         
     def finish_up(self, data_path = None):
         if data_path == None:
-            data_path = f"./data/{'_'.join(map(str,time.localtime()))}.json"
-        data = {
-            "robo_state": self.robo_record,
-            "goal_pos": self.goal_record
-        }
-        # TODO: use pandas
-        # Feather HDL5, Parquet, SQL (saves datatype)
-        with open(data_path, "w") as file:
-            json.dump(data, file)
+            data_path = f"./data/{'_'.join(map(str,time.localtime()))}.h5"
+        if not data_path.endswith(".h5"):
+            data_path += ".h5"
+        self.data.to_hdf(data_path, "data")
             
-    def record_state(self):
+    def record_state(self, dt):
         if self.record:
-            self.robo_record.append(tuple(self.robo_state))
-            self.goal_record.append(tuple(self.goal_pos))
+            self.time += dt
+            self.data.loc[dt] = {
+                "robo_x" : self.robo_state[0],
+                "robo_y" : self.robo_state[1],
+                "robo_deg" : self.robo_state[2],
+                "goal_x" : self.goal_pos[0],
+                "goal_y" : self.goal_pos[1],
+            }
 
     def render(self, surface: pygame.Surface):
         for ob in self.obstacles:

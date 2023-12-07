@@ -61,7 +61,7 @@ def render_window(surface: pygame.Surface, state: np.array, v = 25, dt = 1):
 # environment setup
 env_files = sorted(listdir("levels"), reverse=True)
 std_env = "simple"
-record = False
+record = True
 if std_env != None and f"{std_env}.json" in env_files:
     print(f"loading {std_env}")
     with open(f"./levels/{std_env}.json", "r") as file:
