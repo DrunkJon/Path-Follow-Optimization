@@ -87,7 +87,7 @@ while True:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("white")
 
-    # ENV.get_distance_scans(render_surface=screen)
+    ENV.get_distance_scans(render_surface=screen)
     
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:

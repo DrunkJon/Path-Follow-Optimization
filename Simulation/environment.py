@@ -5,6 +5,8 @@ from Turtlebot_Kinematics import rotate, move_turtle
 import json
 import time
 import pandas as pd
+import shapely
+from shapely.ops import nearest_points
 
 
 def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
@@ -161,18 +163,23 @@ class Environment:
 
     def set_goal_pos(self, pos: np.ndarray):
         self.goal_pos = pos
-
+    
     def get_distance_scans(self, render_surface: pygame.Surface = None):
-        robo_pos = self.robo_state[:2]
-        robo_angle = self.robo_state[2]
-        x_axis = np.array([1,0])
+        poly = shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.obstacles])
+        robo_pos = self.get_robo_pos()
+        robo_point = shapely.Point(robo_pos)
+        robo_angle = self.get_robo_angle()
+        sens_dist = np.array([500,0])
         angles = np.linspace(robo_angle, np.pi * 2 + robo_angle, 360)
-        directions = [rotate(x_axis, angle) for angle in angles]
-        distances = [self.scan(robo_pos, direction) for direction in directions]
+        directions = [rotate(sens_dist, angle) for angle in angles]
+        lines = [shapely.LineString([robo_pos, robo_pos + direc]) for direc in directions]
+        intersects = [line.intersection(poly) for line in lines]
+        closest_poss = [robo_pos + directions[i] if inter.is_empty else np.array(nearest_points(inter, robo_point)[0].coords) for i, inter in enumerate(intersects)]
+        distances = [np.linalg.norm(s - robo_pos) for s in closest_poss]
         if render_surface != None:
             for i, (dist, dire) in enumerate(zip(distances, directions)):
                 if i % 3 != 0: continue
-                cords = robo_pos + min(dist, 500) * dire
+                cords = robo_pos + min(dist, 500) * dire / 500
                 pygame.draw.aaline(render_surface, "red" if i != 0 else "blue", array_to_vec(robo_pos), array_to_vec(cords))
                 self.render_robo(render_surface)
         return distances
