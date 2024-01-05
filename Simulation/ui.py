@@ -9,6 +9,14 @@ class MouseMode(Enum):
     Object = auto()
     Goal = auto()
 
+    def to_str(self):
+        if self == MouseMode.Robot:
+            return "Robot"
+        elif self == MouseMode.Object:
+            return "Object"
+        elif self == MouseMode.Goal:
+            return "Goal"
+
 def mouse_action(clicks, presses, mode: MouseMode, env: Environment):
     left_clicked, middle_clicked, right_clicked = clicks
     left_pressed, middle_pressed, right_pressed = presses
