@@ -107,16 +107,17 @@ class Environment:
         self.record_state(dt)
         
     def finish_up(self, data_path = None):
-        if data_path == None:
-            data_path = f"./data/{'_'.join(map(str,time.localtime()))}.h5"
-        if not data_path.endswith(".h5"):
-            data_path += ".h5"
-        self.data.to_hdf(data_path, "data")
+        if self.record:
+            if data_path == None:
+                data_path = f"./data/{'_'.join(map(str,time.localtime()))}.h5"
+            if not data_path.endswith(".h5"):
+                data_path += ".h5"
+            self.data.to_hdf(data_path, "data")
             
     def record_state(self, dt):
         if self.record:
             self.time += dt
-            self.data.loc[dt] = {
+            self.data.loc[self.time] = {
                 "robo_x" : self.robo_state[0],
                 "robo_y" : self.robo_state[1],
                 "robo_deg" : self.robo_state[2],

@@ -8,7 +8,6 @@ pygame.init()
 # contains all important variables and environment setup
 from run_config import *
 
-
 while True:
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -22,19 +21,14 @@ while True:
 
     ENV.get_distance_scans(render_surface=screen)
     
+    # Close and Save
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
         break
     if keys[pygame.K_LCTRL] and keys[pygame.K_s]:
         ENV.to_json()
-    if keys[pygame.K_w]:
-        v = clamp(v + 15 * dt, -75, 75)
-    if (not keys[pygame.K_LCTRL]) and keys[pygame.K_s]:
-        v = clamp(v - 15 * dt, -75, 75)
-    if keys[pygame.K_a]:
-        w = clamp(w + np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
-    if keys[pygame.K_d]:
-        w = clamp(w - np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
+
+    # MouseMode
     if keys[pygame.K_F1]:
         MODE = MouseMode.Robot
     elif keys[pygame.K_F2]:
@@ -42,8 +36,16 @@ while True:
     elif keys[pygame.K_F3]:
         MODE = MouseMode.Goal
 
-    v,w = controll(ENV)
+    if CTRL == ControllMode.Player:
+        player_controll(keys)
+    elif CTRL == ControllMode.Controller:
+        v,w = controll(ENV)
+    elif CTRL == ControllMode.Animation:
+        t = animation_controll(ENV)
+        if t < 0:
+            break
 
+    
     presses = pygame.mouse.get_pressed(3)
     clicks = tuple(new and not old for new, old in zip(presses, old_presses))
     mouse_action(clicks, presses, MODE, ENV)
@@ -57,16 +59,7 @@ while True:
     fps = round(1 / (clock.tick(target_fps) / 1000), 1)
     img = font.render(f'fps:{fps} | target:{target_fps}', True, "black")
     screen.blit(img, (1260 - img.get_width(), 20))
-    # print(f"v: {v} w:{w}")
-
-    # render_window(screen, robo_state, v, 5)
-
-    # flip() the display to put your work on screen
     pygame.display.flip()
 
-    # limits FPS to 60
-    # dt is delta time in seconds since last frame, used for framerate-
-    # independent physics.
-    
 ENV.finish_up()
 pygame.quit()
