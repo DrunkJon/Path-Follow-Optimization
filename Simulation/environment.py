@@ -88,8 +88,8 @@ class Environment:
         self.robo_state = robo_state
         self.goal_pos = goal_pos
         self.record = record
+        self.time = 0.0
         if record:
-            self.time = 0.0
             self.data = pd.DataFrame({
                 "robo_x" : self.robo_state[0],
                 "robo_y" : self.robo_state[1],
@@ -104,7 +104,8 @@ class Environment:
         self.update_robo_state(v,w,dt)
         if surface != None:
             self.render(surface)
-        self.record_state(dt)
+        self.time += dt
+        self.record_state()
         
     def finish_up(self, data_path = None):
         if self.record:
@@ -114,9 +115,8 @@ class Environment:
                 data_path += ".h5"
             self.data.to_hdf(data_path, "data")
             
-    def record_state(self, dt):
+    def record_state(self):
         if self.record:
-            self.time += dt
             self.data.loc[self.time] = {
                 "robo_x" : self.robo_state[0],
                 "robo_y" : self.robo_state[1],

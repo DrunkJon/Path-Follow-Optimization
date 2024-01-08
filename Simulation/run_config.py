@@ -6,10 +6,12 @@ from os import listdir
 from enum import Enum, auto
 import sys
 from pandas import read_hdf
+from run_util import *
 
 # env values
 std_env = "simple"
 record = False
+ENV = load_ENV(std_env, record)
 
 # Run Options
 class ControllMode(Enum):
@@ -53,34 +55,8 @@ font = pygame.font.SysFont(None, 24)
 MODE = MouseMode.Robot
 old_presses = (False, False, False)
 
-# env load
-env_files = sorted(listdir("levels"), reverse=True)
-if std_env != None and f"{std_env}.json" in env_files:
-    print(f"loading {std_env}")
-    with open(f"./levels/{std_env}.json", "r") as file:
-        json_str = file.read()
-        ENV = Environment.from_json(json_str, record)
-elif len(env_files) >= 1:
-    print(f"loading {env_files[0]}")
-    with open(f"./levels/{env_files[0]}", "r") as file:
-        json_str = file.read()
-        ENV = Environment.from_json(json_str, record)
-else:
-    print("loading new ENV")
-    ENV = Environment(np.array([640,360,0], dtype=float), np.array([1260, 700], dtype=float), record)
-
-
 # util functions
-def clamp(val, min= None, max= None):
-    if min != None and val < min:
-        return min
-    if max != None and val > max:
-        return max
-    else:
-        return val
-
-
-def player_controll(keys):
+def player_controll(keys, v, w):
     if keys[pygame.K_w]:
         v = clamp(v + 15 * dt, -75, 75)
     if (not keys[pygame.K_LCTRL]) and keys[pygame.K_s]:
@@ -89,6 +65,7 @@ def player_controll(keys):
         w = clamp(w + np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
     if keys[pygame.K_d]:
         w = clamp(w - np.pi / 5 * dt, -np.pi / 3, np.pi / 3)
+    return v, w
 
 
 def animation_controll(ENV):

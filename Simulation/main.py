@@ -37,7 +37,7 @@ while True:
         MODE = MouseMode.Goal
 
     if CTRL == ControllMode.Player:
-        player_controll(keys)
+        v, w = player_controll(keys, v, w)
     elif CTRL == ControllMode.Controller:
         v,w = controll(ENV)
     elif CTRL == ControllMode.Animation:
