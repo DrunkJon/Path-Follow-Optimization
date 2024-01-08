@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 from simple_controller import controll
-from ui import mouse_action
+from ui import mouse_action, render_environment, render_scanlines
 
 pygame.init()
 
@@ -19,7 +19,8 @@ while True:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill("white")
 
-    ENV.get_distance_scans(render_surface=screen)
+    distances = ENV.get_distance_scans()
+    render_scanlines(distances, ENV, screen)
     
     # Close and Save
     keys = pygame.key.get_pressed()
@@ -51,7 +52,8 @@ while True:
     mouse_action(clicks, presses, MODE, ENV)
     old_presses = presses
 
-    ENV.step(v, w, dt, screen)
+    ENV.step(v, w, dt)
+    render_environment(ENV, screen)
 
     img = font.render(f'Mode:{MODE.to_str()}', True, "black")
     screen.blit(img, (20, 20))

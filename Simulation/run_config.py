@@ -19,7 +19,7 @@ class ControllMode(Enum):
     Controller = auto()
     Animation = auto()
 
-CTRL = ControllMode.Animation
+CTRL = ControllMode.Player
 data_file = None
 HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
 

@@ -1,6 +1,5 @@
 import numpy as np
 from typing import List
-import pygame
 from Turtlebot_Kinematics import rotate, move_turtle
 import json
 import time
@@ -8,9 +7,6 @@ import pandas as pd
 import shapely
 from shapely.ops import nearest_points
 
-
-def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
-    return pygame.Vector2(vec[0], vec[1])
 
 def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
     return np.arccos((v @ u) / (np.linalg.norm(v) * np.linalg.norm(u)))
@@ -30,16 +26,6 @@ class Obstacle:
 
     def translate_corners(self):
         return list([corner + self.offset for corner in self.corners])
-
-    def render(self, surface: pygame.Surface):
-        if len(self.corners) >= 2:
-            points = [array_to_vec(a) for a in self.translate_corners()]
-            if self.finished:
-                pygame.draw.polygon(surface, "grey", points)
-            pygame.draw.aalines(surface, "black", self.finished, points)
-        else:
-            for corner in self.translate_corners():
-                pygame.draw.circle(surface, "black", array_to_vec(corner), 5)
 
     def get_lines(self):
         # returns corner and direction (not normed!) to next corner for each line of obstacle
@@ -100,10 +86,8 @@ class Environment:
                 index = [self.time]
             )
         
-    def step(self, v,w,dt, surface=None):
+    def step(self, v,w,dt):
         self.update_robo_state(v,w,dt)
-        if surface != None:
-            self.render(surface)
         self.time += dt
         self.record_state()
         
@@ -124,25 +108,6 @@ class Environment:
                 "goal_x" : self.goal_pos[0],
                 "goal_y" : self.goal_pos[1],
             }
-
-    def render(self, surface: pygame.Surface):
-        for ob in self.obstacles:
-            ob.render(surface)
-        if self.cur_ob != None:
-            self.cur_ob.render(surface)
-        self.render_goal(surface)
-        self.render_robo(surface)
-
-    def render_robo(self, surface: pygame.Surface):
-        robo_vec = array_to_vec(self.robo_state)
-        pygame.draw.circle(surface, "black", robo_vec, 15)
-        direction_delta = rotate(np.array([15,0]), self.robo_state[2])
-        line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
-        pygame.draw.aaline(surface, "white", robo_vec, line_end)
-
-    def render_goal(self, surface: pygame.Surface):
-        pygame.draw.circle(surface, "yellow", array_to_vec(self.goal_pos), 10)
-        pygame.draw.circle(surface, "black", array_to_vec(self.goal_pos), 10, 2)
 
     def turn_robo_towards(self, point: np.ndarray):
         if (point != self.get_robo_pos()).any():
@@ -165,7 +130,7 @@ class Environment:
     def set_goal_pos(self, pos: np.ndarray):
         self.goal_pos = pos
     
-    def get_distance_scans(self, render_surface: pygame.Surface = None):
+    def get_distance_scans(self):
         poly = shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.obstacles])
         robo_pos = self.get_robo_pos()
         robo_point = shapely.Point(robo_pos)
@@ -177,12 +142,6 @@ class Environment:
         intersects = [line.intersection(poly) for line in lines]
         closest_poss = [robo_pos + directions[i] if inter.is_empty else np.array(nearest_points(inter, robo_point)[0].coords) for i, inter in enumerate(intersects)]
         distances = [np.linalg.norm(s - robo_pos) for s in closest_poss]
-        if render_surface != None:
-            for i, (dist, dire) in enumerate(zip(distances, directions)):
-                if i % 3 != 0: continue
-                cords = robo_pos + min(dist, 500) * dire / 500
-                pygame.draw.aaline(render_surface, "red" if i != 0 else "blue", array_to_vec(robo_pos), array_to_vec(cords))
-                self.render_robo(render_surface)
         return distances
     
     def scan(self, robo_pos: np.ndarray, direction: np.ndarray):
