@@ -61,7 +61,7 @@ def render_robo(env: Environment, surface: pygame.Surface):
     pygame.draw.aaline(surface, "white", robo_vec, line_end)
 
 def render_environment(env: Environment, surface: pygame.Surface):
-    for ob in env.obstacles:
+    for ob in env.map_obstacles:
         render_obstacle(ob, surface)
     if env.cur_ob != None:
         env.cur_ob.render(surface)

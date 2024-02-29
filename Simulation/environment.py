@@ -62,14 +62,14 @@ class Obstacle:
 
 
 class Environment:
-    obstacles: List[Obstacle]
+    map_obstacles: List[Obstacle]
     cur_ob: Obstacle
     robo_state: np.ndarray
     goal_pos: np.ndarray
     data: pd.DataFrame
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
-        self.obstacles = []
+        self.map_obstacles = []
         self.cur_ob = None
         self.robo_state = robo_state
         self.goal_pos = goal_pos
@@ -131,7 +131,7 @@ class Environment:
         self.goal_pos = pos
     
     def get_distance_scans(self):
-        poly = shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.obstacles])
+        poly = shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.map_obstacles])
         robo_pos = self.get_robo_pos()
         robo_point = shapely.Point(robo_pos)
         robo_angle = self.get_robo_angle()
@@ -145,7 +145,7 @@ class Environment:
         return distances
     
     def scan(self, robo_pos: np.ndarray, direction: np.ndarray):
-        return min([ob.scan(robo_pos, direction) for ob in self.obstacles])
+        return min([ob.scan(robo_pos, direction) for ob in self.map_obstacles])
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
@@ -155,14 +155,14 @@ class Environment:
 
     def finish_obstacle(self):
         self.cur_ob.finished = True
-        self.obstacles.append(self.cur_ob)
+        self.map_obstacles.append(self.cur_ob)
         self.cur_ob = None
 
     def to_json(self):
         data = {
             "robo_state": list(self.robo_state),
             "goal_pos": list(self.goal_pos),
-            "obstacles": list(ob.to_dict() for ob in self.obstacles)
+            "obstacles": list(ob.to_dict() for ob in self.map_obstacles)
         }
         with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
             file.write(json.dumps(data, indent=2))
@@ -170,6 +170,6 @@ class Environment:
     def from_json(json_string:str, record=False) -> "Environment":
         data = json.loads(json_string)
         new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), record)
-        new_env.obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
+        new_env.map_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
         return new_env
     
