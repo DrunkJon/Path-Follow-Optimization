@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 from simple_controller import controll
-from ui import mouse_action, render_environment, render_scanlines
+from ui import *
 
 pygame.init()
 
@@ -17,10 +17,7 @@ while True:
     if not running: break
 
     # fill the screen with a color to wipe away anything from last frame
-    screen.fill("white")
-
-    distances = ENV.get_distance_scans()
-    render_scanlines(distances, ENV, screen)
+    parent_screen.fill("white")
     
     # Close and Save
     keys = pygame.key.get_pressed()
@@ -35,6 +32,8 @@ while True:
     elif keys[pygame.K_F2]:
         MODE = MouseMode.Object
     elif keys[pygame.K_F3]:
+        MODE = MouseMode.Unknown
+    elif keys[pygame.K_F4]:
         MODE = MouseMode.Goal
 
     if CTRL == ControllMode.Player:
@@ -45,22 +44,28 @@ while True:
         t = animation_controll(ENV)
         if t < 0:
             break
-
     
     presses = pygame.mouse.get_pressed(3)
     clicks = tuple(new and not old for new, old in zip(presses, old_presses))
     mouse_action(clicks, presses, MODE, ENV)
     old_presses = presses
 
+    # distances = ENV.get_distance_scans()
+    # render_scanlines(distances, ENV, parent_screen) 
+    
     ENV.step(v, w, dt)
-    render_environment(ENV, screen)
+    render_robo(ENV.get_internal_state(), 20, parent_screen, color="blue")
+    render_environment(ENV, parent_screen)
+    render_sensor_fusion(ENV, parent_screen)
+    # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
 
     img = font.render(f'Mode:{MODE.to_str()}', True, "black")
-    screen.blit(img, (20, 20))
+    parent_screen.blit(img, (20, 20))
 
     fps = round(1 / (clock.tick(target_fps) / 1000), 1)
     img = font.render(f'fps:{fps} | target:{target_fps}', True, "black")
-    screen.blit(img, (1260 - img.get_width(), 20))
+    parent_screen.blit(img, (1260 - img.get_width(), 20))
+
     pygame.display.flip()
 
 ENV.finish_up()

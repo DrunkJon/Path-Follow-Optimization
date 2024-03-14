@@ -11,6 +11,9 @@ from shapely.ops import nearest_points
 def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
     return np.arccos((v @ u) / (np.linalg.norm(v) * np.linalg.norm(u)))
 
+def random_koeff(max_diff = 0.05):
+    return 1 - max_diff + np.random.rand() * 2 * max_diff
+
 
 class Obstacle:
     corners: List[np.ndarray]
@@ -63,15 +66,23 @@ class Obstacle:
 
 class Environment:
     map_obstacles: List[Obstacle]
+    unknown_obstacles: List[Obstacle]
     cur_ob: Obstacle
     robo_state: np.ndarray
     goal_pos: np.ndarray
     data: pd.DataFrame
 
+    max_scan_dist = 500
+    robo_radius = 15
+    scan_lines = 90
+
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.map_obstacles = []
+        self.unknown_obstacles = []
         self.cur_ob = None
         self.robo_state = robo_state
+        # self.internal_offset = np.zeros_like(self.robo_state)
+        self.internal_offset = np.array([np.random.random() * 50, np.random.random() * 50, np.random.random() * (2*np.pi / 360)*10,])
         self.goal_pos = goal_pos
         self.record = record
         self.time = 0.0
@@ -85,6 +96,9 @@ class Environment:
                 },
                 index = [self.time]
             )
+
+    def get_internal_state(self):
+        return self.robo_state + self.internal_offset
         
     def step(self, v,w,dt):
         self.update_robo_state(v,w,dt)
@@ -116,7 +130,9 @@ class Environment:
             self.robo_state[2] = angle if delta[1] <= 0 else np.pi * 2 -angle
 
     def update_robo_state(self, v, w, dt):
-        self.robo_state = move_turtle(self.robo_state, v, w, dt)
+        old_state = self.robo_state
+        self.robo_state = move_turtle(old_state, v * random_koeff(), w * random_koeff(), dt * random_koeff())
+        self.internal_offset = move_turtle(old_state + self.internal_offset, v, w, dt) - self.robo_state
 
     def get_robo_angle(self) -> float:
         return self.robo_state[2]
@@ -129,23 +145,55 @@ class Environment:
 
     def set_goal_pos(self, pos: np.ndarray):
         self.goal_pos = pos
+
+    def get_map_poly(self):
+        return shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.map_obstacles + self.unknown_obstacles])
     
-    def get_distance_scans(self):
-        poly = shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.map_obstacles])
+    def get_scan_coords(self):
+        poly = self.get_map_poly()
         robo_pos = self.get_robo_pos()
         robo_point = shapely.Point(robo_pos)
         robo_angle = self.get_robo_angle()
-        sens_dist = np.array([500,0])
-        angles = np.linspace(robo_angle, np.pi * 2 + robo_angle, 360)
+        sens_dist = np.array([self.max_scan_dist,0])
+        angles = np.linspace(robo_angle, np.pi * 2 + robo_angle, self.scan_lines)
         directions = [rotate(sens_dist, angle) for angle in angles]
         lines = [shapely.LineString([robo_pos, robo_pos + direc]) for direc in directions]
         intersects = [line.intersection(poly) for line in lines]
-        closest_poss = [robo_pos + directions[i] if inter.is_empty else np.array(nearest_points(inter, robo_point)[0].coords) for i, inter in enumerate(intersects)]
-        distances = [np.linalg.norm(s - robo_pos) for s in closest_poss]
+        closest_poss = [(robo_pos + directions[i]).flatten() if inter.is_empty else np.array(nearest_points(inter, robo_point)[0].coords).flatten() for i, inter in enumerate(intersects)]
+        return closest_poss
+    
+    def get_distance_scans(self, scan_coords = None):
+        if scan_coords == None:
+            scan_coords = self.get_scan_coords()
+        distances = [np.linalg.norm(s - self.get_robo_pos()) for s in scan_coords]
+        # add sens errors if scan dist < max dist
+        distances = [d * random_koeff() if d < self.max_scan_dist - 0.1 else d for d in distances]
         return distances
     
     def scan(self, robo_pos: np.ndarray, direction: np.ndarray):
-        return min([ob.scan(robo_pos, direction) for ob in self.map_obstacles])
+        return min([ob.scan(robo_pos, direction) for ob in self.map_obstacles + self.unknown_obstacles])
+
+    def get_internal_scan_cords(self, scan_dists = None):
+        if scan_dists == None:
+            scan_dists = self.get_distance_scans()
+        x, y, rho = self.get_internal_state()
+        internal_pos = np.array([x,y])
+        directions = [
+            rotate(np.array([1.0,0.0]), angle) 
+            for angle in 
+            np.linspace(rho, np.pi * 2 + rho, len(scan_dists))
+        ]
+        return [internal_pos + dist * dire for i, (dist, dire) in enumerate(zip(scan_dists, directions))]
+
+    def get_sensor_fusion(self, point_cloud = True) -> shapely.MultiPolygon:
+        scan_dists = self.get_distance_scans()
+        scan_cords = self.get_internal_scan_cords(scan_dists)
+        scan_point_cloud = shapely.unary_union([shapely.Point(cord) for cord,dist in zip(scan_cords, scan_dists) if dist <= self.max_scan_dist - 0.1])
+        map_poly = shapely.unary_union([shapely.Polygon(obs.translate_corners()) for obs in self.map_obstacles])
+        if point_cloud:
+            return scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
+        else:
+            return scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
@@ -153,16 +201,20 @@ class Environment:
         else:
             self.cur_ob.add_corner(corner)
 
-    def finish_obstacle(self):
+    def finish_obstacle(self, add_to_map = True):
         self.cur_ob.finished = True
-        self.map_obstacles.append(self.cur_ob)
+        if add_to_map:
+            self.map_obstacles.append(self.cur_ob)
+        else:
+            self.unknown_obstacles.append(self.cur_ob)
         self.cur_ob = None
 
     def to_json(self):
         data = {
             "robo_state": list(self.robo_state),
             "goal_pos": list(self.goal_pos),
-            "obstacles": list(ob.to_dict() for ob in self.map_obstacles)
+            "obstacles": list(ob.to_dict() for ob in self.map_obstacles),
+            "unknowns": list(ob.to_dict() for ob in self.unknown_obstacles)
         }
         with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
             file.write(json.dumps(data, indent=2))
@@ -171,5 +223,6 @@ class Environment:
         data = json.loads(json_string)
         new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), record)
         new_env.map_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
+        new_env.unknown_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["unknowns"]])
         return new_env
     
