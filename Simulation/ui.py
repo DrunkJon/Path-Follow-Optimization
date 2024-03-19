@@ -64,8 +64,8 @@ def render_obstacle(ob: Obstacle, surface: pygame.Surface, color = "grey"):
 
 def render_robo(robo_state: np.ndarray, radius: float, surface: pygame.Surface, color="black"):
     robo_vec = array_to_vec(robo_state)
-    pygame.draw.circle(surface, color, robo_vec, 15)
-    direction_delta = rotate(np.array([15,0]), robo_state[2])
+    pygame.draw.circle(surface, color, robo_vec, radius)
+    direction_delta = rotate(np.array([radius,0]), robo_state[2])
     line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
     pygame.draw.aaline(surface, "white", robo_vec, line_end)
 
@@ -119,3 +119,39 @@ def render_sensor_fusion(env: Environment, surface: pygame.Surface):
         elif type(geom) == shapely.Point:
             coords = tuple(geom.coords)
             pygame.draw.circle(surface, "red", coords, 3)
+
+def interpolate(left, right, ratio):
+    return ((1-ratio) * left + ratio * right)
+
+def render_fitness(env: Environment, surface: pygame.Surface):
+    vals = []
+    max_val, min_val = -np.inf, np.inf
+    sens = env.get_sensor_fusion()
+    print("starting fitness calc...")
+    spacing = 10
+    w_offset, h_offset, _ = env.internal_offset
+    for i_w in range(0, surface.get_width()+1, spacing):
+        row = []
+        for i_h in range(0, surface.get_height()+1, spacing):
+            print(i_w, i_h)
+            val = env.fitness_single(pos=(i_w+w_offset, i_h+h_offset), sensor_fusion=sens)
+            if val > max_val: max_val = val
+            elif val < min_val: min_val = val
+            row.append(val)
+        vals.append(row)
+    print(min_val, max_val)
+    for i_w in range(surface.get_width()):
+        for i_h in range(surface.get_height()):
+            # val = vals[i_w][i_h]
+            w_ratio = (i_w % spacing) / spacing
+            h_ratio = (i_h % spacing) / spacing
+            top_left = vals[i_w // spacing][i_h // spacing]
+            top_right = vals[i_w // spacing + 1][i_h // spacing] if i_w // spacing + 1 <= len(vals) else top_left
+            bot_left = vals[i_w // spacing][i_h // spacing + 1] if i_h // spacing + 1 < len(vals[0]) else top_left
+            bot_right = vals[i_w // spacing + 1][i_h // spacing + 1] if i_h // spacing + 1 < len(vals[0]) else top_right
+            val = interpolate(interpolate(top_left, top_right, w_ratio), interpolate(bot_left, bot_right, w_ratio), h_ratio)
+            ratio = (val - min_val) / (max_val - min_val)
+            # print("ratio", ratio)
+            color = pygame.Color(int(ratio*255), int((1-ratio)*255), 200)
+            surface.set_at((i_w, i_h), color)
+    print("finished fitness calc")

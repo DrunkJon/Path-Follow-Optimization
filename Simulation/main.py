@@ -8,6 +8,7 @@ pygame.init()
 # contains all important variables and environment setup
 from run_config import *
 
+render_fitness(ENV, fit_surface)
 while True:
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -17,7 +18,10 @@ while True:
     if not running: break
 
     # fill the screen with a color to wipe away anything from last frame
-    parent_screen.fill("white")
+    if visualize_fitness:
+        parent_screen.blit(fit_surface, (0,0))
+    else:
+        parent_screen.fill("white")
     
     # Close and Save
     keys = pygame.key.get_pressed()
@@ -53,9 +57,13 @@ while True:
     # distances = ENV.get_distance_scans()
     # render_scanlines(distances, ENV, parent_screen) 
     
+    # next simulation step
     ENV.step(v, w, dt)
-    render_robo(ENV.get_internal_state(), 20, parent_screen, color="blue")
+    # render intenal robo position in blue
+    render_robo(ENV.get_internal_state(), ENV.robo_radius, parent_screen, color="blue")
+    # renders obstacles, goal and actual robo position
     render_environment(ENV, parent_screen)
+    # creates red overlay of where robot thinks obstacles are
     render_sensor_fusion(ENV, parent_screen)
     # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
 

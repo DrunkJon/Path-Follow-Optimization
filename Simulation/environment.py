@@ -14,6 +14,9 @@ def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
 def random_koeff(max_diff = 0.05):
     return 1 - max_diff + np.random.rand() * 2 * max_diff
 
+def sigmoid(x):
+    return np.e**x / (1 + np.e**x)
+
 
 class Obstacle:
     corners: List[np.ndarray]
@@ -72,9 +75,14 @@ class Environment:
     goal_pos: np.ndarray
     data: pd.DataFrame
 
+    # values for scan and rendering
     max_scan_dist = 500
-    robo_radius = 15
+    robo_radius = 30
     scan_lines = 90
+    # values for fitness function
+    collision_penalty = 10000
+    goal_koeff = 10
+    comfort_dist = 3    # * robo_radius
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.map_obstacles = []
@@ -194,6 +202,21 @@ class Environment:
             return scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
         else:
             return scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
+
+    # minimize:
+    def fitness_single(self, pos = None, sensor_fusion = None):
+        if pos == None:
+            pos = self.get_internal_state()[:2]
+        pos_point = shapely.Point(pos)
+        if sensor_fusion == None:
+            sensor_fusion = self.get_sensor_fusion()
+        obstacle_dist = pos_point.distance(sensor_fusion) / self.robo_radius
+        if obstacle_dist <= 1.0 and False:
+            return self.collision_penalty
+        goal_dist = pos_point.distance(shapely.Point(self.goal_pos))
+        goal_fit = self.goal_koeff * (goal_dist / self.robo_radius)
+        obstacle_fit = self.collision_penalty * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist))
+        return  goal_fit + obstacle_fit
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
