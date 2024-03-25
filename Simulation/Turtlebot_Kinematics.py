@@ -24,3 +24,10 @@ def move_turtle(state: np.array, v:float, w:float, t:float) -> np.array:
             y - np.sin(theta) * v * t,
             theta
         ])
+    
+def translate_differential_drive(v_left: float, v_right: float, wheel_distance:float = 16.0):
+    # based on Kinematic model described by Nele Traichel in her Master Thesis
+    trans = (v_right + v_left) / 2
+    rotation = (v_right - v_left) / wheel_distance
+    # returns translational and rotational speed of robot that results from the input velocities
+    return trans, rotation

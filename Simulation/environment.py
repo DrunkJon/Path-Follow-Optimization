@@ -82,7 +82,7 @@ class Environment:
     # values for fitness function
     collision_penalty = 10000
     goal_koeff = 10
-    comfort_dist = 3    # * robo_radius
+    comfort_dist = 1    # * robo_radius
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.map_obstacles = []
@@ -205,7 +205,7 @@ class Environment:
 
     # minimize:
     def fitness_single(self, pos = None, sensor_fusion = None):
-        if pos == None:
+        if type(pos) != np.ndarray:
             pos = self.get_internal_state()[:2]
         pos_point = shapely.Point(pos)
         if sensor_fusion == None:

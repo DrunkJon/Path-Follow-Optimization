@@ -9,7 +9,7 @@ from pandas import read_hdf
 from run_util import *
 
 # env values
-std_env = "simple"
+std_env = "simple copy"
 record = False
 ENV = load_ENV(std_env, record)
 
@@ -19,7 +19,7 @@ class ControllMode(Enum):
     Controller = auto()
     Animation = auto()
 
-CTRL = ControllMode.Player
+CTRL = ControllMode.Controller
 data_file = None
 HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
 
@@ -51,7 +51,7 @@ w = 0
 parent_screen = pygame.display.set_mode()
 left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
 right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-visualize_fitness = True
+visualize_fitness = False
 fit_surface = parent_screen.copy()
 map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
 temp_surface = pygame.Surface(map_size)

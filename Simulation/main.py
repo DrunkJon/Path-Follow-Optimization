@@ -1,14 +1,19 @@
 import pygame
 import numpy as np
-from simple_controller import controll
 from ui import *
+from dwa_controller import DWA_Controller
 
 pygame.init()
 
 # contains all important variables and environment setup
 from run_config import *
 
-render_fitness(ENV, fit_surface)
+CONTROL = True
+if CONTROL:
+    controller = DWA_Controller()
+
+if visualize_fitness:
+    render_fitness(ENV, fit_surface)
 while True:
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
@@ -43,7 +48,7 @@ while True:
     if CTRL == ControllMode.Player:
         v, w = player_controll(keys, v, w)
     elif CTRL == ControllMode.Controller:
-        v,w = controll(ENV)
+        v,w = controller(ENV)
     elif CTRL == ControllMode.Animation:
         t = animation_controll(ENV)
         if t < 0:
