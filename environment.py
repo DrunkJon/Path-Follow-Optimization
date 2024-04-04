@@ -79,13 +79,13 @@ class Environment:
 
     # values for scan and rendering
     max_scan_dist = 500
-    robo_radius = 30
-    scan_lines = 30
+    robo_radius = 16
+    scan_lines = 90
     # values for fitness function
     collision_penalty = 10000
-    goal_koeff = 10
+    goal_koeff = 50
     obstacle_koeff = 100
-    comfort_dist = 1    # * robo_radius
+    comfort_dist = 2    # * robo_radius
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
         self.map_obstacles = []

@@ -55,18 +55,30 @@ class Multi_PSO_Controller(PSO_Controller):
         super().__init__(samples, max_v, min_v, dt)
         self.horizon = horizon
         self.pop = self.gen_swarm()
+        self.velocities = [np.zeros_like(ind) for ind in self.pop]
+        self.individual_best = list(self.pop)
+        self.individual_fit = [np.infty for _ in self.individual_best]
+        self.global_best = self.individual_best[np.argmin(self.individual_fit)]
+        self.global_fit = np.min(self.individual_fit)
 
     @timer
-    def __call__(self, env: Environment, iterations=20, sensor_fusion=None):
-        global_best, global_fit = self.particle_swarm_optimization(env, pop=self.pop, iterations=iterations,sensor_fusion=sensor_fusion)
-        # print(f"fit={global_fit} | {global_best[:2]}")
-        self.next_pop()
-        return translate_differential_drive(*global_best[:2])
+    def __call__(self, env: Environment, iterations=20, sensor_fusion=None, verbose=True):
+        if type(sensor_fusion) == NoneType:
+            sensor_fusion == env.get_sensor_fusion()
+        self.next_pop(env, sensor_fusion)
+        self.particle_swarm_optimization(env, pop=self.pop, iterations=iterations,sensor_fusion=sensor_fusion)
+        if verbose: print(f"fit={self.global_fit} | {self.global_best[:2]}")
+        return translate_differential_drive(*self.global_best[:2])
     
-    def next_pop(self):
+    def next_pop(self, env: Environment, sensor_fusion=None):
         for i in range(len(self.pop)):
-            self.pop[i][:-2] = self.pop[i][2:]
+            self.pop[i][:-2] = self.individual_best[i][2:]
             self.pop[i][-2:] = self.generate_v_vector(horizon=1)[:]
+        self.velocities = [np.zeros_like(ind) for ind in self.pop]
+        self.individual_best = list(self.pop)
+        self.individual_fit = [self.fitness(ind, env, sensor_fusion) for ind in self.individual_best]
+        self.global_best = self.individual_best[np.argmin(self.individual_fit)]
+        self.global_fit = np.min(self.individual_fit)
     
     def generate_v_vector(self, horizon=0):
         if horizon <= 0:
@@ -74,8 +86,14 @@ class Multi_PSO_Controller(PSO_Controller):
         v_range = 2 * self.max_v
         vec = np.array([self.min_v]*horizon*2) + np.random.rand(horizon*2) * v_range
         return vec
+    
+    def get_trajectory(self, vec, initial_state):
+        positions = [initial_state]
+        for v,w in translate_vector(vec):
+            positions.append(move_turtle(positions[-1], v, w, self.dt))
+        return positions
 
-    def fitness(self, vec, env:Environment, discount=0.95, sensor_fusion=None):
+    def fitness(self, vec, env:Environment, sensor_fusion=None, discount=0.95):
         trans_v_list = translate_vector(vec)
         positions = []
         cur_state = env.get_internal_state()
@@ -94,39 +112,30 @@ class Multi_PSO_Controller(PSO_Controller):
     def gen_swarm(self):
         return [self.generate_v_vector(self.horizon) for _ in range(self.samples)]
 
-    @timer
-    def particle_swarm_optimization(self, env:Environment, pop, charged_pop=[], iterations=100, sensor_fusion=None):
+    def particle_swarm_optimization(self, env:Environment, pop, charged_pop=[], iterations=100, sensor_fusion=None, turbulence=0.1):
         start = time()
-        turbulence_trigger = 0.5
         # ATTENTION!: fitness is minimized
         if sensor_fusion == None:
             sensor_fusion = env.get_sensor_fusion()
         fit = lambda ind: self.fitness(ind, env, sensor_fusion=sensor_fusion)
         # TODO: make compatible with charged particles
-        velocities = [np.zeros_like(ind) for ind in pop]
-        individual_best = list(pop)
-        individual_fit = [fit(ind) for ind in individual_best]
-        global_best = individual_best[np.argmin(individual_fit)]
-        global_fit = np.min(individual_fit)
-        print("setup:", time() - start)
         for iteration in range(iterations):
             start1 = time()
             new_pop = []
             for i,ind in enumerate(pop):
                 start2 = time()
-                if turbulence_trigger >= np.linalg.norm(velocities[i]) and iteration > 0:
+                if turbulence >= np.linalg.norm(self.velocities[i]) and iteration > 0:
                     new_ind = self.generate_v_vector(self.horizon)
                 else:
-                    new_ind, velocities[i] = self.apply_swarm_forces(ind, individual_best[i], global_best, velocities[i])
+                    new_ind, self.velocities[i] = self.apply_swarm_forces(ind, self.individual_best[i], self.global_best, self.velocities[i])
                 new_pop.append(new_ind)
                 new_fit = fit(new_ind)
-                if new_fit < individual_fit[i]:
-                    individual_fit[i] = new_fit
-                    individual_best[i] = new_ind
-                    if new_fit < global_fit:
-                        global_fit = new_fit
-                        global_best = new_ind
+                if new_fit < self.individual_fit[i]:
+                    self.individual_fit[i] = new_fit
+                    self.individual_best[i] = new_ind
+                    if new_fit < self.global_fit:
+                        self.global_fit = new_fit
+                        self.global_best = new_ind
                 # print("inner_loop:", time() - start2)
             self.pop = new_pop
-            print("main_loop:", time() - start1)
-        return global_best, global_fit
+        return self.global_best, self.global_fit

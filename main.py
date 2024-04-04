@@ -13,7 +13,7 @@ from run_config import *
 CONTROL = True
 if CONTROL:
     # controller = DWA_Controller()
-    controller = Multi_PSO_Controller(20, 22.2, -22.2, 10)
+    controller = Multi_PSO_Controller(20, 22.2, -22.2, 40)
 
 if visualize_fitness:
     render_fitness(ENV, fit_surface)
@@ -76,6 +76,7 @@ while True:
     # creates red overlay of where robot thinks obstacles are
     render_sensor_fusion(ENV, parent_screen, sensor_fusion=sensor)
     # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
+    render_particle_trajectories(ENV, controller, parent_screen)
 
     img = font.render(f'Mode:{MODE.to_str()}', True, "black")
     parent_screen.blit(img, (20, 20))

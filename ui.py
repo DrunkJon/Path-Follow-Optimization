@@ -4,6 +4,8 @@ from enum import Enum, auto
 import numpy as np
 from Turtlebot_Kinematics import rotate
 import shapely
+from pso_controller import PSO_Controller
+
 
 
 def array_to_vec(vec: np.ndarray) -> pygame.Vector2:
@@ -156,3 +158,13 @@ def render_fitness(env: Environment, surface: pygame.Surface):
             color = pygame.Color(int(ratio*255), int((1-ratio)*255), 200)
             surface.set_at((i_w, i_h), color)
     print("finished fitness calc")
+
+def render_particle_trajectories(env:Environment, ctrl: PSO_Controller, surface: pygame.Surface):
+    cur_state = env.get_internal_state()
+    trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.individual_best]
+    for traj in trajecories:
+        traj = [state[:2] for state in traj]
+        # print(traj)
+        pygame.draw.aalines(surface, "orange", True, traj)
+    best_traj = [state[:2] for state in ctrl.get_trajectory(ctrl.global_best, cur_state)]
+    pygame.draw.aalines(surface, "green", True, best_traj)

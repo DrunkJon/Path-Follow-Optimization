@@ -9,6 +9,8 @@ def rotate(vec: np.ndarray, angle: float):
     return rotation_matrix(angle) @ vec
 
 def move_turtle(state: np.array, v:float, w:float, t:float) -> np.array:
+    if len(state) < 3:
+        print(state)
     x, y, theta = state
     if w != 0:
         r = v / w

@@ -39,7 +39,7 @@ if CTRL == ControllMode.Animation:
 
 # simulation values
 if not CTRL == ControllMode.Animation:
-    target_fps = 20
+    target_fps = 3
     dt = 1 / target_fps
 else:
     dt = animation_data.iloc[1].name - animation_data.iloc[0].name
