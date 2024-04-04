@@ -107,12 +107,13 @@ def retransform_sensor(poly: shapely.MultiPolygon, env: Environment):
     poly = shapely.affinity.translate(poly, xoff = -int_x, yoff = -int_y)
     return poly
 
-def render_sensor_fusion(env: Environment, surface: pygame.Surface):
+def render_sensor_fusion(env: Environment, surface: pygame.Surface, sensor_fusion=None):
     # sensor fusion centered around internal state
-    poly = env.get_sensor_fusion(point_cloud=True)
+    if sensor_fusion == None:
+        sensor_fusion = env.get_sensor_fusion(point_cloud=True)
     # sensor fusion re-centered around actual state for visual clarity
-    poly = retransform_sensor(poly, env)
-    for geom in poly.geoms:
+    sensor_fusion = retransform_sensor(sensor_fusion, env)
+    for geom in sensor_fusion.geoms:
         if type(geom) == shapely.Polygon:
             coords = list(geom.exterior.coords)
             pygame.draw.polygon(surface, "red", coords)
@@ -133,11 +134,11 @@ def render_fitness(env: Environment, surface: pygame.Surface):
     for i_w in range(0, surface.get_width()+1, spacing):
         row = []
         for i_h in range(0, surface.get_height()+1, spacing):
-            print(i_w, i_h)
-            val = env.fitness_single(pos=(i_w+w_offset, i_h+h_offset), sensor_fusion=sens)
+            val = np.log(env.fitness_single(pos=np.array((i_w+w_offset, i_h+h_offset)), sensor_fusion=sens))
             if val > max_val: max_val = val
             elif val < min_val: min_val = val
             row.append(val)
+            print(i_w, i_h, "->", val)
         vals.append(row)
     print(min_val, max_val)
     for i_w in range(surface.get_width()):

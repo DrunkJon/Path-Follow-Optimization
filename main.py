@@ -2,6 +2,8 @@ import pygame
 import numpy as np
 from ui import *
 from dwa_controller import DWA_Controller
+from pso_controller import Multi_PSO_Controller
+from time import time
 
 pygame.init()
 
@@ -10,7 +12,8 @@ from run_config import *
 
 CONTROL = True
 if CONTROL:
-    controller = DWA_Controller()
+    # controller = DWA_Controller()
+    controller = Multi_PSO_Controller(20, 22.2, -22.2, 10)
 
 if visualize_fitness:
     render_fitness(ENV, fit_surface)
@@ -27,6 +30,8 @@ while True:
         parent_screen.blit(fit_surface, (0,0))
     else:
         parent_screen.fill("white")
+
+    sensor = ENV.get_sensor_fusion()
     
     # Close and Save
     keys = pygame.key.get_pressed()
@@ -48,7 +53,7 @@ while True:
     if CTRL == ControllMode.Player:
         v, w = player_controll(keys, v, w)
     elif CTRL == ControllMode.Controller:
-        v,w = controller(ENV)
+        v,w = controller(ENV, iterations = 20, sensor_fusion=sensor)
     elif CTRL == ControllMode.Animation:
         t = animation_controll(ENV)
         if t < 0:
@@ -69,7 +74,7 @@ while True:
     # renders obstacles, goal and actual robo position
     render_environment(ENV, parent_screen)
     # creates red overlay of where robot thinks obstacles are
-    render_sensor_fusion(ENV, parent_screen)
+    render_sensor_fusion(ENV, parent_screen, sensor_fusion=sensor)
     # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
 
     img = font.render(f'Mode:{MODE.to_str()}', True, "black")

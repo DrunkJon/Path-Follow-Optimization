@@ -1,5 +1,7 @@
 import numpy as np
 from typing import List
+
+from torch import NoneType
 from Turtlebot_Kinematics import rotate, move_turtle
 import json
 import time
@@ -78,10 +80,11 @@ class Environment:
     # values for scan and rendering
     max_scan_dist = 500
     robo_radius = 30
-    scan_lines = 90
+    scan_lines = 30
     # values for fitness function
     collision_penalty = 10000
     goal_koeff = 10
+    obstacle_koeff = 100
     comfort_dist = 1    # * robo_radius
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
@@ -205,17 +208,17 @@ class Environment:
 
     # minimize:
     def fitness_single(self, pos = None, sensor_fusion = None):
-        if type(pos) != np.ndarray:
+        if type(pos) == NoneType:
             pos = self.get_internal_state()[:2]
         pos_point = shapely.Point(pos)
         if sensor_fusion == None:
             sensor_fusion = self.get_sensor_fusion()
         obstacle_dist = pos_point.distance(sensor_fusion) / self.robo_radius
-        if obstacle_dist <= 1.0 and False:
+        goal_dist = pos_point.distance(shapely.Point(self.goal_pos)) / self.robo_radius
+        if obstacle_dist <= 0.5:
             return self.collision_penalty
-        goal_dist = pos_point.distance(shapely.Point(self.goal_pos))
-        goal_fit = self.goal_koeff * (goal_dist / self.robo_radius)
-        obstacle_fit = self.collision_penalty * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist))
+        goal_fit = self.goal_koeff * (goal_dist)
+        obstacle_fit = self.obstacle_koeff * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist))
         return  goal_fit + obstacle_fit
 
     def add_corner(self, corner:np.ndarray):

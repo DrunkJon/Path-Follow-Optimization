@@ -48,7 +48,7 @@ v = 0
 w = 0
 
 # ui setup
-parent_screen = pygame.display.set_mode()
+parent_screen = pygame.display.set_mode((1600, 900))
 left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
 right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
 visualize_fitness = False

@@ -13,7 +13,6 @@ class DWA_Controller:
         self.min_v = min_v
 
     def __call__(self, env: Environment, dt=0.05):
-        dt = 1 / 20
         v_space = np.linspace(self.min_v, self.max_v, self.samples)
         sensor_fusion = env.get_sensor_fusion()
         # grid sampling
@@ -22,6 +21,7 @@ class DWA_Controller:
         for v_right in v_space:
             for v_left in v_space:
                 v_trans = translate_differential_drive(v_left, v_right)
+                # print(v_left, v_right, "->", v_trans)
                 fit = env.fitness_single(pos=move_turtle(env.get_internal_state() ,*v_trans, dt)[:2], sensor_fusion=sensor_fusion)
                 if fit < best_fit:
                     best_fit = fit
