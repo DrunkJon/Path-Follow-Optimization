@@ -10,7 +10,7 @@ def rotate(vec: np.ndarray, angle: float):
 
 def move_turtle(state: np.array, v:float, w:float, t:float) -> np.array:
     if len(state) < 3:
-        print(state)
+        raise Exception(f"state expected to have 3 elements. recieved: {state}")
     x, y, theta = state
     if w != 0:
         r = v / w

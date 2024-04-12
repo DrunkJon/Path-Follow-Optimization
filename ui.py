@@ -4,7 +4,7 @@ from enum import Enum, auto
 import numpy as np
 from Turtlebot_Kinematics import rotate
 import shapely
-from pso_controller import PSO_Controller
+from pso_controller import Multi_PSO_Controller
 
 
 
@@ -71,6 +71,10 @@ def render_robo(robo_state: np.ndarray, radius: float, surface: pygame.Surface, 
     line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
     pygame.draw.aaline(surface, "white", robo_vec, line_end)
 
+def render_radius(robo_state: np.ndarray, radius: float, surface: pygame.Surface, color="black"):
+    robo_vec = array_to_vec(robo_state)
+    pygame.draw.circle(surface, color, robo_vec, radius, 3)
+
 def render_environment(env: Environment, surface: pygame.Surface, internal = False):
     for ob in env.map_obstacles:
         render_obstacle(ob, surface, color="grey")
@@ -115,7 +119,8 @@ def render_sensor_fusion(env: Environment, surface: pygame.Surface, sensor_fusio
         sensor_fusion = env.get_sensor_fusion(point_cloud=True)
     # sensor fusion re-centered around actual state for visual clarity
     sensor_fusion = retransform_sensor(sensor_fusion, env)
-    for geom in sensor_fusion.geoms:
+    geoms = [sensor_fusion._geom] if not type(sensor_fusion) == shapely.GeometryCollection else sensor_fusion.geoms
+    for geom in geoms:
         if type(geom) == shapely.Polygon:
             coords = list(geom.exterior.coords)
             pygame.draw.polygon(surface, "red", coords)
@@ -136,7 +141,7 @@ def render_fitness(env: Environment, surface: pygame.Surface):
     for i_w in range(0, surface.get_width()+1, spacing):
         row = []
         for i_h in range(0, surface.get_height()+1, spacing):
-            val = np.log(env.fitness_single(pos=np.array((i_w+w_offset, i_h+h_offset)), sensor_fusion=sens))
+            val = np.log(env.fitness_single(state=np.array((i_w+w_offset, i_h+h_offset)), sensor_fusion=sens))
             if val > max_val: max_val = val
             elif val < min_val: min_val = val
             row.append(val)
@@ -159,12 +164,15 @@ def render_fitness(env: Environment, surface: pygame.Surface):
             surface.set_at((i_w, i_h), color)
     print("finished fitness calc")
 
-def render_particle_trajectories(env:Environment, ctrl: PSO_Controller, surface: pygame.Surface):
+def render_particle_trajectories(env:Environment, ctrl: Multi_PSO_Controller, surface: pygame.Surface):
     cur_state = env.get_internal_state()
     trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.individual_best]
+    charged_trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.charged_pop]
+    for traj in charged_trajecories:
+        traj = [state[:2] for state in traj]
+        pygame.draw.aalines(surface, "grey", False, traj)
     for traj in trajecories:
         traj = [state[:2] for state in traj]
-        # print(traj)
-        pygame.draw.aalines(surface, "orange", True, traj)
+        pygame.draw.aalines(surface, "orange", False, traj)
     best_traj = [state[:2] for state in ctrl.get_trajectory(ctrl.global_best, cur_state)]
-    pygame.draw.aalines(surface, "green", True, best_traj)
+    pygame.draw.aalines(surface, "green", False, best_traj)

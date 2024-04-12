@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 from ui import *
 from dwa_controller import DWA_Controller
-from pso_controller import Multi_PSO_Controller
+from pso_controller import Multi_PSO_Controller, PSO_Controller
 from time import time
 
 pygame.init()
@@ -11,9 +11,19 @@ pygame.init()
 from run_config import *
 
 CONTROL = True
+horizon = 15
+# type: DWA; MultiPSO; SinglePSO
+ctrl_type = "PSO"
 if CONTROL:
-    # controller = DWA_Controller()
-    controller = Multi_PSO_Controller(20, 22.2, -22.2, 40)
+    if ctrl_type == "DWA":
+        controller = DWA_Controller()
+    elif ctrl_type == "MultiPSO":
+        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, dt)
+    elif ctrl_type == "PSO":
+        controller = PSO_Controller(10, 22.2, -22.2, dt)
+        horizon = 1
+    else:
+        raise Exception(f"not a valid ctrl type ({ctrl_type})")
 
 if visualize_fitness:
     render_fitness(ENV, fit_surface)
@@ -53,7 +63,12 @@ while True:
     if CTRL == ControllMode.Player:
         v, w = player_controll(keys, v, w)
     elif CTRL == ControllMode.Controller:
-        v,w = controller(ENV, iterations = 20, sensor_fusion=sensor)
+        if ctrl_type == "DWA":
+            v, w = controller(ENV, dt)  
+        elif ctrl_type == "MultiPSO":
+            v,w = controller(ENV, iterations = 5, sensor_fusion=sensor)
+        elif ctrl_type == "PSO":
+            v,w = controller(ENV, iterations = 10, sensor_fusion=sensor)
     elif CTRL == ControllMode.Animation:
         t = animation_controll(ENV)
         if t < 0:
@@ -69,6 +84,9 @@ while True:
     
     # next simulation step
     ENV.step(v, w, dt)
+    # render potential movement radius
+    if ctrl_type in ["MultiPSO", "PSO"]:
+        render_radius(ENV.get_internal_state(), 22.2 * horizon * dt, parent_screen)
     # render intenal robo position in blue
     render_robo(ENV.get_internal_state(), ENV.robo_radius, parent_screen, color="blue")
     # renders obstacles, goal and actual robo position
@@ -76,7 +94,8 @@ while True:
     # creates red overlay of where robot thinks obstacles are
     render_sensor_fusion(ENV, parent_screen, sensor_fusion=sensor)
     # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
-    render_particle_trajectories(ENV, controller, parent_screen)
+    if ctrl_type in ["MultiPSO", "PSO"]:
+        render_particle_trajectories(ENV, controller, parent_screen)
 
     img = font.render(f'Mode:{MODE.to_str()}', True, "black")
     parent_screen.blit(img, (20, 20))

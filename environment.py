@@ -8,16 +8,11 @@ import time
 import pandas as pd
 import shapely
 from shapely.ops import nearest_points
+from functions import sigmoid, vec_angle
 
-
-def vec_angle(v: np.ndarray, u: np.ndarray) -> float:
-    return np.arccos((v @ u) / (np.linalg.norm(v) * np.linalg.norm(u)))
 
 def random_koeff(max_diff = 0.05):
     return 1 - max_diff + np.random.rand() * 2 * max_diff
-
-def sigmoid(x):
-    return np.e**x / (1 + np.e**x)
 
 
 class Obstacle:
@@ -82,18 +77,21 @@ class Environment:
     robo_radius = 16
     scan_lines = 90
     # values for fitness function
-    collision_penalty = 10000
+    collision_penalty = 100000
     goal_koeff = 50
-    obstacle_koeff = 100
+    speed_koeff = 0
+    obstacle_koeff = 200
+    heading_koeff = 0
     comfort_dist = 2    # * robo_radius
 
-    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False) -> None:
+    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False, use_errors=False) -> None:
+        self.use_erros= use_errors
         self.map_obstacles = []
         self.unknown_obstacles = []
         self.cur_ob = None
         self.robo_state = robo_state
-        # self.internal_offset = np.zeros_like(self.robo_state)
-        self.internal_offset = np.array([np.random.random() * 50, np.random.random() * 50, np.random.random() * (2*np.pi / 360)*10,])
+        self.internal_offset = np.zeros_like(self.robo_state)
+        # self.internal_offset = np.array([np.random.random() * 50, np.random.random() * 50, np.random.random() * (2*np.pi / 360)*10,])
         self.goal_pos = goal_pos
         self.record = record
         self.time = 0.0
@@ -142,8 +140,9 @@ class Environment:
 
     def update_robo_state(self, v, w, dt):
         old_state = self.robo_state
-        self.robo_state = move_turtle(old_state, v * random_koeff(), w * random_koeff(), dt * random_koeff())
-        self.internal_offset = move_turtle(old_state + self.internal_offset, v, w, dt) - self.robo_state
+        self.robo_state = move_turtle(old_state, v * random_koeff(0.05 if self.use_erros else 0), w * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
+        if self.use_erros:
+            self.internal_offset = move_turtle(old_state + self.internal_offset, v, w, dt) - self.robo_state
 
     def get_robo_angle(self) -> float:
         return self.robo_state[2]
@@ -207,19 +206,27 @@ class Environment:
             return scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
 
     # minimize:
-    def fitness_single(self, pos = None, sensor_fusion = None):
-        if type(pos) == NoneType:
-            pos = self.get_internal_state()[:2]
-        pos_point = shapely.Point(pos)
+    def fitness_single(self, state = None, sensor_fusion = None, v=0):
+        if type(state) == NoneType:
+            state = self.get_internal_state()
+        pos_point = shapely.Point(state[:2])
         if sensor_fusion == None:
             sensor_fusion = self.get_sensor_fusion()
         obstacle_dist = pos_point.distance(sensor_fusion) / self.robo_radius
         goal_dist = pos_point.distance(shapely.Point(self.goal_pos)) / self.robo_radius
-        if obstacle_dist <= 0.5:
+        if obstacle_dist <= 1:
             return self.collision_penalty
         goal_fit = self.goal_koeff * (goal_dist)
-        obstacle_fit = self.obstacle_koeff * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist))
-        return  goal_fit + obstacle_fit
+        try:
+            obstacle_fit = self.obstacle_koeff * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) if not sensor_fusion.is_empty else 0
+        except OverflowError as err:
+            print(err, "\n", "obstacle_dist =", obstacle_dist)
+            obstacle_fit = self.obstacle_koeff
+        goal_vec = self.goal_pos - state[:2]
+        heading_vec = move_turtle(state, 10, 0, 1) - state
+        heading_fit = -(goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff
+        return  goal_fit + obstacle_fit + heading_fit
+        # return  goal_fit + obstacle_fit - self.speed_koeff * np.linalg.norm(v)
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:
