@@ -9,7 +9,7 @@ from pandas import read_hdf
 from run_util import *
 
 # env values
-std_env = "small wall"
+std_env = "simple"
 record = False
 ENV = load_ENV(std_env, record)
 
@@ -39,7 +39,7 @@ if CTRL == ControllMode.Animation:
 
 # simulation values
 if not CTRL == ControllMode.Animation:
-    target_fps = 5
+    target_fps = 1
     dt = 1 / target_fps
 else:
     dt = animation_data.iloc[1].name - animation_data.iloc[0].name
