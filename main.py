@@ -16,11 +16,11 @@ horizon = 15
 ctrl_type = "PSO"
 if CONTROL:
     if ctrl_type == "DWA":
-        controller = DWA_Controller()
+        controller = DWA_Controller(horizon = horizon)
     elif ctrl_type == "MultiPSO":
         controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, dt)
     elif ctrl_type == "PSO":
-        controller = PSO_Controller(10, 22.2, -22.2, dt)
+        controller = PSO_Controller(10, 22.2, -22.2, dt, horizon)
         horizon = 1
     else:
         raise Exception(f"not a valid ctrl type ({ctrl_type})")

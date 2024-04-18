@@ -160,8 +160,9 @@ class PSO_Controller(Multi_PSO_Controller):
     speed_koeff = 1
     comfort_dist = 2
 
-    def __init__(self, samples=10, max_v=22.2, min_v=-22.2, dt=0.05) -> NoneType:
+    def __init__(self, samples=10, max_v=22.2, min_v=-22.2, dt=0.05, horizon = 20) -> NoneType:
         super().__init__(samples, max_v, min_v, 1, dt)
+        self.lookahead_horizon = horizon
 
     def next_pop(self, env: Environment, sensor_fusion=None):
         self.pop = self.gen_swarm()
@@ -178,7 +179,7 @@ class PSO_Controller(Multi_PSO_Controller):
         v,w = translate_differential_drive(*vec)
         if type(sensor_fusion) == NoneType:
             sensor_fusion = env.get_sensor_fusion()
-        next_state = move_turtle(cur_state, v, w, self.dt)
+        next_state = move_turtle(cur_state, v, w, self.dt * self.lookahead_horizon)
 
         if not sensor_fusion.is_empty:
             pos_point = shapely.Point(next_state[:2])
@@ -192,9 +193,9 @@ class PSO_Controller(Multi_PSO_Controller):
         goal_vec = env.goal_pos - next_state[:2]
         heading_vec = move_turtle(next_state, 10, 0, 1) - next_state
         #print("vecs:", goal_vec, heading_vec)
-        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * np.sign(v)
+        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff #  * np.sign(v)
 
-        speed_fit = abs(v / self.max_v) * self.speed_koeff
+        speed_fit = v / self.max_v * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 
