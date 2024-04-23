@@ -12,7 +12,7 @@ class DWA_Controller:
     dist_koeff = -500
     heading_koeff = 10
     speed_koeff = 1
-    comfort_dist = 1
+    comfort_dist = 2
 
     def __init__(self, samples=20, max_v=22.2, min_v=-22.2, horizon=10) -> None:
         self.samples = samples
@@ -57,9 +57,9 @@ class DWA_Controller:
         goal_vec = env.goal_pos - next_state[:2]
         heading_vec = move_turtle(next_state, 10, 0, 1) - next_state
         #print("vecs:", goal_vec, heading_vec)
-        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff # * np.sign(v)
+        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v) if v != 0 else 1)
 
-        speed_fit = v / self.max_v * self.speed_koeff
+        speed_fit = (v / self.max_v) * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 

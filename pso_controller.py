@@ -207,9 +207,9 @@ class PSO_Controller(Multi_PSO_Controller):
         goal_vec = env.goal_pos - next_state[:2]
         heading_vec = move_turtle(next_state, 10, 0, 1) - next_state
         #print("vecs:", goal_vec, heading_vec)
-        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff #  * np.sign(v)
+        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * np.sign(v)
 
-        speed_fit = v / self.max_v * self.speed_koeff
+        speed_fit = abs(v / self.max_v) * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 

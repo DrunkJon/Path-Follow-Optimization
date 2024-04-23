@@ -9,7 +9,7 @@ from pandas import read_hdf
 from run_util import *
 
 # env values
-std_env = "small wall"
+std_env = "simple"
 record = False
 ENV = load_ENV(std_env, record)
 
