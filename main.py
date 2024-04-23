@@ -11,14 +11,14 @@ pygame.init()
 from run_config import *
 
 CONTROL = True
-horizon = 15
+horizon = 10
 # type: DWA; MultiPSO; SinglePSO
-ctrl_type = "PSO"
+ctrl_type = "MultiPSO"
 if CONTROL:
     if ctrl_type == "DWA":
         controller = DWA_Controller(horizon = horizon)
     elif ctrl_type == "MultiPSO":
-        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, dt)
+        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, 0.5)
     elif ctrl_type == "PSO":
         controller = PSO_Controller(10, 22.2, -22.2, dt, horizon)
         horizon = 1
@@ -66,7 +66,7 @@ while True:
         if ctrl_type == "DWA":
             v, w = controller(ENV, dt)  
         elif ctrl_type == "MultiPSO":
-            v,w = controller(ENV, iterations = 5, sensor_fusion=sensor)
+            v,w = controller(ENV, iterations = 5, sensor_fusion=sensor, true_dt=dt)
         elif ctrl_type == "PSO":
             v,w = controller(ENV, iterations = 10, sensor_fusion=sensor)
     elif CTRL == ControllMode.Animation:

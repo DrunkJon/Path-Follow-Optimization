@@ -28,6 +28,7 @@ def disturb(vec):
 
 ####### Multi PSO ######
 class Multi_PSO_Controller():
+    v_dim = 2
     def __init__(self, samples=10, max_v=22.2, min_v=-22.2, horizon=10, dt=0.05) -> None:
         self.samples = samples
         self.max_v = max_v
@@ -43,18 +44,31 @@ class Multi_PSO_Controller():
         self.global_fit = np.min(self.individual_fit)
 
     @timer
-    def __call__(self, env: Environment, iterations=20, sensor_fusion=None, verbose=True):
+    def __call__(self, env: Environment, iterations=20, true_dt=0.05, sensor_fusion=None, verbose=True):
         if type(sensor_fusion) == NoneType:
             sensor_fusion == env.get_sensor_fusion()
-        self.next_pop(env, sensor_fusion)
+        self.next_pop(env, sensor_fusion, true_dt)
         self.particle_swarm_optimization(env, iterations=iterations,sensor_fusion=sensor_fusion)
         if verbose: print(f"fit={self.global_fit} | {self.global_best[:2]}")
         return translate_differential_drive(*self.global_best[:2])
     
-    def next_pop(self, env: Environment, sensor_fusion=None):
+    def shift_ind(self, ind, true_dt):
+        # true_dt is the time an action will actually be performed,
+        # self.dt is the time of a simulation step
+        # this function assumes the first action of ind has been performed for true_dt and shifts the remaining actions to maintain the current trajectory
+        sub_vectors = [ind[i:i+self.v_dim] for i in range(0, len(ind), self.v_dim)]
+        sub_vectors.append(self.generate_v_vector(horizon=1))
+        assert self.dt >= true_dt
+        left_fac = (self.dt - true_dt) / self.dt
+        right_fac = (true_dt) / self.dt
+        for i in range(len(sub_vectors)-1):
+            sub_vectors[i] = sub_vectors[i] * left_fac + sub_vectors[i+1] * right_fac  
+        ind = np.array(sub_vectors[:-1]).flatten()
+        return ind
+    
+    def next_pop(self, env: Environment, sensor_fusion, true_dt):
         for i in range(len(self.pop)):
-            self.pop[i][:-2] = self.individual_best[i][2:]
-            self.pop[i][-2:] = self.generate_v_vector(horizon=1)[:]
+            self.pop[i] = self.shift_ind(self.pop[i], true_dt)
         self.charged_pop = self.gen_swarm()
         self.velocities = [np.zeros_like(ind) for ind in self.pop]
         self.individual_best = list(self.pop)
@@ -66,7 +80,7 @@ class Multi_PSO_Controller():
         if horizon <= 0:
             horizon = self.horizon
         v_range = self.max_v - self.min_v
-        vec = np.array([self.min_v]*horizon*2) + np.random.rand(horizon*2) * v_range
+        vec = np.array([self.min_v]*horizon*self.v_dim) + np.random.rand(horizon*self.v_dim) * v_range
         return vec
     
     def get_trajectory(self, vec, initial_state):
@@ -164,7 +178,7 @@ class PSO_Controller(Multi_PSO_Controller):
         super().__init__(samples, max_v, min_v, 1, dt)
         self.lookahead_horizon = horizon
 
-    def next_pop(self, env: Environment, sensor_fusion=None):
+    def next_pop(self, env: Environment, sensor_fusion, true_dt):
         self.pop = self.gen_swarm()
         self.pop[0] = self.global_best
         self.charged_pop = self.gen_swarm()
