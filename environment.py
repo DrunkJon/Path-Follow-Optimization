@@ -77,12 +77,12 @@ class Environment:
     robo_radius = 16
     scan_lines = 90
     # values for fitness function
-    collision_penalty = 100000
+    collision_penalty = 1000
     goal_koeff = 50
-    speed_koeff = 0
-    obstacle_koeff = 200
+    speed_koeff = 10
+    obstacle_koeff = collision_penalty
     heading_koeff = 0
-    comfort_dist = 2    # * robo_radius
+    comfort_dist = 2.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False, use_errors=False) -> None:
         self.use_erros= use_errors
@@ -218,15 +218,15 @@ class Environment:
             return self.collision_penalty
         goal_fit = self.goal_koeff * (goal_dist)
         try:
-            obstacle_fit = self.obstacle_koeff * (1 - sigmoid((obstacle_dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) if not sensor_fusion.is_empty else 0
+            obstacle_fit = 0 if sensor_fusion.is_empty or obstacle_dist >= self.comfort_dist else self.obstacle_koeff * (self.comfort_dist - obstacle_dist) / self.comfort_dist
         except OverflowError as err:
             print(err, "\n", "obstacle_dist =", obstacle_dist)
             obstacle_fit = self.obstacle_koeff
         goal_vec = self.goal_pos - state[:2]
         heading_vec = move_turtle(state, 10, 0, 1) - state
         heading_fit = -(goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff
-        return  goal_fit + obstacle_fit + heading_fit
-        # return  goal_fit + obstacle_fit - self.speed_koeff * np.linalg.norm(v)
+        # return  goal_fit + obstacle_fit # + heading_fit
+        return  goal_fit + obstacle_fit - self.speed_koeff * np.linalg.norm(v)
 
     def add_corner(self, corner:np.ndarray):
         if self.cur_ob == None:

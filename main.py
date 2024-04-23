@@ -12,13 +12,14 @@ from run_config import *
 
 CONTROL = True
 horizon = 10
+virtual_dt = 1.0
 # type: DWA; MultiPSO; SinglePSO
 ctrl_type = "MultiPSO"
 if CONTROL:
     if ctrl_type == "DWA":
         controller = DWA_Controller(horizon = horizon)
     elif ctrl_type == "MultiPSO":
-        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, 0.5)
+        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
     elif ctrl_type == "PSO":
         controller = PSO_Controller(10, 22.2, -22.2, dt, horizon)
         horizon = 1
@@ -86,7 +87,7 @@ while True:
     ENV.step(v, w, dt)
     # render potential movement radius
     if ctrl_type in ["MultiPSO", "PSO"]:
-        render_radius(ENV.get_internal_state(), 22.2 * horizon * dt, parent_screen)
+        render_radius(ENV.get_internal_state(), 22.2 * horizon * virtual_dt, parent_screen)
     # render intenal robo position in blue
     render_robo(ENV.get_internal_state(), ENV.robo_radius, parent_screen, color="blue")
     # renders obstacles, goal and actual robo position

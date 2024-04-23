@@ -9,7 +9,7 @@ from pandas import read_hdf
 from run_util import *
 
 # env values
-std_env = "simple"
+std_env = "Corner Obstacle"
 record = False
 ENV = load_ENV(std_env, record)
 
@@ -51,7 +51,7 @@ w = 0
 parent_screen = pygame.display.set_mode((1600, 900))
 left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
 right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-visualize_fitness = False
+visualize_fitness = True
 fit_surface = parent_screen.copy()
 map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
 temp_surface = pygame.Surface(map_size)

@@ -141,7 +141,7 @@ def render_fitness(env: Environment, surface: pygame.Surface):
     for i_w in range(0, surface.get_width()+1, spacing):
         row = []
         for i_h in range(0, surface.get_height()+1, spacing):
-            val = np.log(env.fitness_single(state=np.array((i_w+w_offset, i_h+h_offset)), sensor_fusion=sens))
+            val = np.log(env.fitness_single(state=np.array((i_w+w_offset, i_h+h_offset, 0)), sensor_fusion=sens))
             if val > max_val: max_val = val
             elif val < min_val: min_val = val
             row.append(val)
