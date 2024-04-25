@@ -8,9 +8,16 @@ import sys
 from pandas import read_hdf
 from run_util import *
 
+
+HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
+print(HDLS)
+
+if not HDLS:
+    pygame.init()
+
 # env values
-std_env = "Corner Obstacle"
-record = False
+std_env = "Corner Long"
+record = False or HDLS
 ENV = load_ENV(std_env, record)
 
 # Run Options
@@ -21,7 +28,6 @@ class ControllMode(Enum):
 
 CTRL = ControllMode.Controller
 data_file = None
-HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
 
 animation_data = None
 if CTRL == ControllMode.Animation:
@@ -48,18 +54,19 @@ v = 0
 w = 0
 
 # ui setup
-parent_screen = pygame.display.set_mode((1600, 900))
-left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-visualize_fitness = True
-fit_surface = parent_screen.copy()
-map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
-temp_surface = pygame.Surface(map_size)
-clock = pygame.time.Clock()
-running = True
-font = pygame.font.SysFont(None, 24)
-MODE = MouseMode.Robot
-old_presses = (False, False, False)
+if not HDLS:
+    parent_screen = pygame.display.set_mode((1600, 900))
+    left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
+    right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
+    visualize_fitness = True
+    fit_surface = parent_screen.copy()
+    map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
+    temp_surface = pygame.Surface(map_size)
+    clock = pygame.time.Clock()
+    running = True
+    font = pygame.font.SysFont(None, 24)
+    MODE = MouseMode.Robot
+    old_presses = (False, False, False)
 
 # util functions
 def player_controll(keys, v, w):

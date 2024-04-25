@@ -77,9 +77,9 @@ class Environment:
     robo_radius = 16
     scan_lines = 90
     # values for fitness function
-    collision_penalty = 1000
+    collision_penalty = 2500
     goal_koeff = 50
-    speed_koeff = 10
+    speed_koeff = 5
     obstacle_koeff = collision_penalty
     heading_koeff = 0
     comfort_dist = 2.0    # * robo_radius (> 1, sonst ist nur collision relevant)
