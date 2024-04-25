@@ -159,6 +159,12 @@ class Environment:
     def get_map_poly(self):
         return shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.map_obstacles + self.unknown_obstacles])
     
+    def get_dist_to_goal(self, internal = False):
+        if internal:
+            return np.linalg.norm(self.goal_pos - self.get_internal_state()[:2])
+        else:
+            return np.linalg.norm(self.goal_pos - self.get_robo_pos())
+
     def get_scan_coords(self):
         poly = self.get_map_poly()
         robo_pos = self.get_robo_pos()

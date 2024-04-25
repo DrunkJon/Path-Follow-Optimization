@@ -30,7 +30,11 @@ if CONTROL:
 
 if not HDLS and visualize_fitness:
     render_fitness(ENV, fit_surface)
+
+step = 0
+max_step = 1000
 while True:
+    step += 1
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
     if not HDLS:
@@ -39,8 +43,9 @@ while True:
                 running = False
         if not running: break
     else:
-        #TODO: headless break conditions
-        pass
+        if step > max_step or ENV.get_dist_to_goal() < 5.0:
+            print(f"finished at step #{max_step}\ndistance to goal: {ENV.get_dist_to_goal()}")
+            break
 
     # fill the screen with a color to wipe away anything from last frame
     if not HDLS:
