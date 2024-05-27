@@ -79,10 +79,10 @@ class Environment:
     # values for fitness function
     collision_penalty = 2500
     goal_koeff = 50
-    speed_koeff = 5
+    speed_koeff = 3
     obstacle_koeff = collision_penalty
     heading_koeff = 0
-    comfort_dist = 2.0    # * robo_radius (> 1, sonst ist nur collision relevant)
+    comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False, use_errors=False) -> None:
         self.use_erros= use_errors
@@ -210,14 +210,21 @@ class Environment:
             return scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
         else:
             return scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
+        
+    def get_obstacle_dist(self, sensor_fusion = None):
+        state = self.get_internal_state()
+        if sensor_fusion == None:
+            sensor_fusion = self.get_sensor_fusion()
+        pos_point = shapely.Point(state[:2])
+        return pos_point.distance(sensor_fusion) / self.robo_radius
 
     # minimize:
     def fitness_single(self, state = None, sensor_fusion = None, v=0):
         if type(state) == NoneType:
             state = self.get_internal_state()
-        pos_point = shapely.Point(state[:2])
         if sensor_fusion == None:
             sensor_fusion = self.get_sensor_fusion()
+        pos_point = shapely.Point(state[:2])
         obstacle_dist = pos_point.distance(sensor_fusion) / self.robo_radius
         goal_dist = pos_point.distance(shapely.Point(self.goal_pos)) / self.robo_radius
         if obstacle_dist <= 1:

@@ -5,21 +5,18 @@ from dwa_controller import DWA_Controller
 from pso_controller import Multi_PSO_Controller, PSO_Controller
 from time import time
 
+
 # contains all important variables and environment setup
 from run_config import *
 
 
-
-
-
-CONTROL = True
-horizon = 10
-virtual_dt = 1.0
-# type: DWA; MultiPSO; SinglePSO
-ctrl_type = "MultiPSO"
-if CONTROL:
+virtual_dt = 1.5
+horizon = 5
+### type: DWA; MultiPSO; SinglePSO
+ctrl_type = "DWA"
+if CTRL == ControllMode.Controller:
     if ctrl_type == "DWA":
-        controller = DWA_Controller(horizon = horizon)
+        controller = DWA_Controller()
     elif ctrl_type == "MultiPSO":
         controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
     elif ctrl_type == "PSO":
@@ -33,8 +30,14 @@ if not HDLS and visualize_fitness:
 
 step = 0
 max_step = 1000
+distances = []
+running = True
+v, w = 0, 0
 while True:
     step += 1
+    print("#",step)
+    sensor = ENV.get_sensor_fusion()
+    distances.append(ENV.get_obstacle_dist(sensor_fusion=sensor))
     # poll for events
     # pygame.QUIT event means the user clicked X to close your window
     if not HDLS:
@@ -43,7 +46,7 @@ while True:
                 running = False
         if not running: break
     else:
-        if step > max_step or ENV.get_dist_to_goal() < 5.0:
+        if step > max_step or ENV.get_dist_to_goal() < ENV.robo_radius:
             print(f"finished at step #{max_step}\ndistance to goal: {ENV.get_dist_to_goal()}")
             break
 
@@ -54,7 +57,6 @@ while True:
         else:
             parent_screen.fill("white")
 
-    sensor = ENV.get_sensor_fusion()
     
     # Close and Save
     if not HDLS:
@@ -79,9 +81,9 @@ while True:
         v, w = player_controll(keys, v, w)
     elif CTRL == ControllMode.Controller or HDLS:
         if ctrl_type == "DWA":
-            v, w = controller(ENV, dt)  
+            v, w = controller(ENV, 2.0)  
         elif ctrl_type == "MultiPSO":
-            v,w = controller(ENV, iterations = 5, sensor_fusion=sensor, true_dt=dt)
+            v,w = controller(ENV, iterations = 7, sensor_fusion=sensor, true_dt=dt)
         elif ctrl_type == "PSO":
             v,w = controller(ENV, iterations = 10, sensor_fusion=sensor)
     elif CTRL == ControllMode.Animation:
@@ -126,3 +128,9 @@ while True:
 ENV.finish_up()
 if not HDLS:
     pygame.quit()
+"""
+return step, distances
+
+if __name__ == '__main__':
+    main()
+"""

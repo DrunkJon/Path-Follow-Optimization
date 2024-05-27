@@ -9,7 +9,8 @@ from pandas import read_hdf
 from run_util import *
 
 
-HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
+# HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
+HDLS = True
 print(HDLS)
 
 if not HDLS:
@@ -26,7 +27,10 @@ class ControllMode(Enum):
     Controller = auto()
     Animation = auto()
 
-CTRL = ControllMode.Controller
+if HDLS:
+    CTRL = ControllMode.Controller
+else:
+    CTRL = ControllMode.Controller
 data_file = None
 
 animation_data = None
@@ -58,7 +62,7 @@ if not HDLS:
     parent_screen = pygame.display.set_mode((1600, 900))
     left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
     right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-    visualize_fitness = True
+    visualize_fitness = False
     fit_surface = parent_screen.copy()
     map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
     temp_surface = pygame.Surface(map_size)
