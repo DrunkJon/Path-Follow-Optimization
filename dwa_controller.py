@@ -1,4 +1,3 @@
-from types import NoneType
 from environment import Environment
 from typing import Tuple
 import numpy as np
@@ -33,14 +32,14 @@ class DWA_Controller:
                 if fit > best_fit:
                     best_fit = fit
                     best_v = (v,w)
-        if type(best_v) == NoneType:
+        if best_v is None:
             print("ERROR could not find best velocity", best_fit)
         else:
             print("best:", best_v, best_fit)
             return best_v
         
     def fitness(self, env: Environment, cur_state: np.ndarray, v:float, w:float, dt, sensor_fusion=None):
-        if type(sensor_fusion) == NoneType:
+        if sensor_fusion is None:
             sensor_fusion = env.get_sensor_fusion()
         next_state = move_turtle(cur_state, v, w, dt)
 

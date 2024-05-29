@@ -1,7 +1,5 @@
 import numpy as np
 from typing import List
-
-from torch import NoneType
 from Turtlebot_Kinematics import rotate, move_turtle
 import json
 import time
@@ -220,7 +218,7 @@ class Environment:
 
     # minimize:
     def fitness_single(self, state = None, sensor_fusion = None, v=0):
-        if type(state) == NoneType:
+        if state is None:
             state = self.get_internal_state()
         if sensor_fusion == None:
             sensor_fusion = self.get_sensor_fusion()

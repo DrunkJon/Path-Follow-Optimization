@@ -10,7 +10,7 @@ from run_util import *
 
 
 # HDLS = any([s in sys.argv for s in ["-h", "-H", "headless", "Headless"]])
-HDLS = True
+HDLS = False
 print(HDLS)
 
 if not HDLS:
@@ -25,6 +25,9 @@ ENV = load_ENV(std_env, record)
 class ControllMode(Enum):
     Player = auto()
     Controller = auto()
+    DWA = auto()
+    MultiPSO = auto()
+    PSO = auto()
     Animation = auto()
 
 if HDLS:
@@ -59,11 +62,11 @@ w = 0
 
 # ui setup
 if not HDLS:
-    parent_screen = pygame.display.set_mode((1600, 900))
-    left_sub_screen = parent_screen.subsurface(0, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
-    right_sub_screen = parent_screen.subsurface(parent_screen.get_width() / 2 + 1, 0, parent_screen.get_width() / 2 - 1, parent_screen.get_height())
+    screen = pygame.display.set_mode((1600, 900))
+    left_sub_screen = screen.subsurface(0, 0, screen.get_width() / 2 - 1, screen.get_height())
+    right_sub_screen = screen.subsurface(screen.get_width() / 2 + 1, 0, screen.get_width() / 2 - 1, screen.get_height())
     visualize_fitness = False
-    fit_surface = parent_screen.copy()
+    fit_surface = screen.copy()
     map_size = (left_sub_screen.get_width(), left_sub_screen.get_height())
     temp_surface = pygame.Surface(map_size)
     clock = pygame.time.Clock()

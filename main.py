@@ -53,9 +53,9 @@ while True:
     # fill the screen with a color to wipe away anything from last frame
     if not HDLS:
         if visualize_fitness:
-            parent_screen.blit(fit_surface, (0,0))
+            screen.blit(fit_surface, (0,0))
         else:
-            parent_screen.fill("white")
+            screen.fill("white")
 
     
     # Close and Save
@@ -105,23 +105,23 @@ while True:
     # render potential movement radius
     if not HDLS:
         if ctrl_type in ["MultiPSO", "PSO"]:
-            render_radius(ENV.get_internal_state(), 22.2 * horizon * virtual_dt, parent_screen)
+            render_radius(ENV.get_internal_state(), 22.2 * horizon * virtual_dt, screen)
         # render intenal robo position in blue
-        render_robo(ENV.get_internal_state(), ENV.robo_radius, parent_screen, color="blue")
+        render_robo(ENV.get_internal_state(), ENV.robo_radius, screen, color="blue")
         # renders obstacles, goal and actual robo position
-        render_environment(ENV, parent_screen)
+        render_environment(ENV, screen)
         # creates red overlay of where robot thinks obstacles are
-        render_sensor_fusion(ENV, parent_screen, sensor_fusion=sensor)
+        render_sensor_fusion(ENV, screen, sensor_fusion=sensor)
         # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
         if ctrl_type in ["MultiPSO", "PSO"]:
-            render_particle_trajectories(ENV, controller, parent_screen)
+            render_particle_trajectories(ENV, controller, screen)
 
         img = font.render(f'Mode:{MODE.to_str()}', True, "black")
-        parent_screen.blit(img, (20, 20))
+        screen.blit(img, (20, 20))
 
         fps = round(1 / (clock.tick(target_fps) / 1000), 1)
         img = font.render(f'fps:{fps} | target:{target_fps}', True, "black")
-        parent_screen.blit(img, (1260 - img.get_width(), 20))
+        screen.blit(img, (1260 - img.get_width(), 20))
 
         pygame.display.flip()
 
