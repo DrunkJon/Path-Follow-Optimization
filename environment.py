@@ -200,7 +200,7 @@ class Environment:
             scan_coords = self.get_scan_coords()
         distances = [np.linalg.norm(s - self.get_robo_pos()) for s in scan_coords]
         # add sens errors if scan dist < max dist
-        distances = [d * random_koeff() if d < self.max_scan_dist - 0.1 else d for d in distances]
+        distances = [d * (random_koeff() if self.use_erros else 1) if d < self.max_scan_dist - 0.1 else d for d in distances]
         return distances
     
     def scan(self, robo_pos: np.ndarray, direction: np.ndarray):

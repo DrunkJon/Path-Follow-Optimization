@@ -1,6 +1,7 @@
 from environment import Environment
 from enum import Enum, auto
-
+from controller import Controller
+from dwa_controller import DWA_Controller
 
 class ControllMode(Enum):
     Player = auto()
@@ -36,11 +37,11 @@ class Runner():
 
         
         if self.CTRL == ControllMode.DWA:
-            self.v, self.w = self.controller(self.ENV, 2.0)  
+            self.v, self.w = self.controller(self.ENV, dt=2.0)  
         elif self.CTRL == ControllMode.MultiPSO:
-            self.v, self.w = self.controller(self.ENV, iterations = 7, sensor_fusion=self.sensor, true_dt=self.dt)
+            self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor, true_dt=self.dt)
         elif self.CTRL == ControllMode.PSO:
-            self.v, self.w = self.controller(self.ENV, iterations = 10, sensor_fusion=self.sensor)
+            self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor)
         
         # next simulation step
         self.ENV.step(self.v, self.w, self.dt)
@@ -71,15 +72,17 @@ if __name__ == "__main__":
     virtual_dt = 1.5
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
     horizon = 5
+    # iterations for (Multi)PSO Controller
+    iterations = 7
     ### type: DWA; MultiPSO; PSO
     CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller()
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
+        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt, iterations)
     elif CTRL == ControllMode.PSO:
-        controller = PSO_Controller(10, 22.2, -22.2, dt, horizon)
+        controller = PSO_Controller(10, 22.2, -22.2, dt, horizon, iterations)
         horizon = 1
     else:
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")

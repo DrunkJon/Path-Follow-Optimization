@@ -128,7 +128,7 @@ if __name__ == "__main__":
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
 
-    ENV = load_ENV("Corner Long", record=True)
+    ENV = load_ENV("Corner Long", record=False)
 
     # length of one simulation tick
     dt = 0.1

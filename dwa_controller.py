@@ -4,9 +4,10 @@ import numpy as np
 from Turtlebot_Kinematics import move_turtle, translate_differential_drive
 import shapely
 from functions import sigmoid
+from controller import Controller
 
 
-class DWA_Controller:
+class DWA_Controller(Controller):
 
     dist_koeff = -500
     heading_koeff = 15

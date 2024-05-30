@@ -1,10 +1,13 @@
 from types import NoneType
+
+from sympy import Abs
 from environment import Environment
 import numpy as np
 from Turtlebot_Kinematics import translate_differential_drive, move_turtle
 from time import time
 from functions import function_3, sigmoid
 import shapely
+from controller import Controller
 
 def timer(func):
     def inner(*args, **kwargs):
@@ -27,14 +30,16 @@ def disturb(vec):
 
 
 ####### Multi PSO ######
-class Multi_PSO_Controller():
+class Multi_PSO_Controller(Controller):
     v_dim = 2
-    def __init__(self, samples=10, max_v=22.2, min_v=-22.2, horizon=10, dt=0.05) -> None:
+    def __init__(self, samples=10, max_v=22.2, min_v=-22.2, horizon=10, dt=0.05, iterations=10) -> None:
         self.samples = samples
         self.max_v = max_v
         self.min_v = min_v
-        self.dt = dt
         self.horizon = horizon
+        self.dt = dt
+        self.iterations = iterations
+
         self.pop = self.gen_swarm()
         self.charged_pop = self.gen_swarm()
         self.velocities = [np.zeros_like(ind) for ind in self.pop]
@@ -44,11 +49,11 @@ class Multi_PSO_Controller():
         self.global_fit = np.min(self.individual_fit)
 
     @timer
-    def __call__(self, env: Environment, iterations=20, true_dt=0.05, sensor_fusion=None, verbose=True):
+    def __call__(self, env: Environment, true_dt=0.05, sensor_fusion=None, verbose=True):
         if type(sensor_fusion) == NoneType:
             sensor_fusion == env.get_sensor_fusion()
         self.next_pop(env, sensor_fusion, true_dt)
-        self.particle_swarm_optimization(env, iterations=iterations,sensor_fusion=sensor_fusion)
+        self.particle_swarm_optimization(env, iterations=self.iterations,sensor_fusion=sensor_fusion)
         if verbose: print(f"fit={self.global_fit} | {self.global_best[:2]}")
         return translate_differential_drive(*self.global_best[:2])
     
