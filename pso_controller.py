@@ -143,7 +143,7 @@ class Multi_PSO_Controller():
         # TODO: make compatible with charged particles
         for iteration in range(iterations):
             new_pop = []
-            self.charged_pop = self.apply_charged_forces(self.charged_pop, self.pop, d=10)
+            self.charged_pop = self.apply_charged_forces(self.charged_pop, self.pop, d=2)
             for vec in self.charged_pop:
                 f = fit(vec)
                 if f < self.global_fit:

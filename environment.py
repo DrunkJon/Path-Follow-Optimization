@@ -7,6 +7,25 @@ import pandas as pd
 import shapely
 from shapely.ops import nearest_points
 from functions import sigmoid, vec_angle
+from os import listdir
+
+
+def load_ENV(filename, record):
+    env_files = sorted(listdir("levels"), reverse=True)
+    if filename != None and f"{filename}.json" in env_files:
+        print(f"loading {filename}")
+        with open(f"./levels/{filename}.json", "r") as file:
+            json_str = file.read()
+            ENV = Environment.from_json(json_str, record)
+    elif len(env_files) >= 1:
+        print(f"loading {env_files[0]}")
+        with open(f"./levels/{env_files[0]}", "r") as file:
+            json_str = file.read()
+            ENV = Environment.from_json(json_str, record)
+    else:
+        print("loading new ENV")
+        ENV = Environment(np.array([640,360,0], dtype=float), np.array([1260, 700], dtype=float), record)
+    return ENV
 
 
 def random_koeff(max_diff = 0.05):
