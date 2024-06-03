@@ -37,7 +37,7 @@ class Runner():
 
         
         if self.CTRL == ControllMode.DWA:
-            self.v, self.w = self.controller(self.ENV, dt=2.0)  
+            self.v, self.w = self.controller(self.ENV, dt=2.0, sensor_fusion = self.sensor)  
         elif self.CTRL == ControllMode.MultiPSO:
             self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor, true_dt=self.dt)
         elif self.CTRL == ControllMode.PSO:
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # iterations for (Multi)PSO Controller
     iterations = 7
     ### type: DWA; MultiPSO; PSO
-    CTRL = ControllMode.MultiPSO
+    CTRL = ControllMode.DWA
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller()

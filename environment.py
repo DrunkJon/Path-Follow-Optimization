@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List
-from Turtlebot_Kinematics import rotate, move_turtle
+from Turtlebot_Kinematics import KinematicModel, unicycleKin, rotate
 import json
 import time
 import pandas as pd
@@ -10,21 +10,21 @@ from functions import sigmoid, vec_angle
 from os import listdir
 
 
-def load_ENV(filename, record):
+def load_ENV(filename, kinematic:KinematicModel, record:bool):
     env_files = sorted(listdir("levels"), reverse=True)
     if filename != None and f"{filename}.json" in env_files:
         print(f"loading {filename}")
         with open(f"./levels/{filename}.json", "r") as file:
             json_str = file.read()
-            ENV = Environment.from_json(json_str, record)
+            ENV = Environment.from_json(json_str, kinematic, record)
     elif len(env_files) >= 1:
         print(f"loading {env_files[0]}")
         with open(f"./levels/{env_files[0]}", "r") as file:
             json_str = file.read()
-            ENV = Environment.from_json(json_str, record)
+            ENV = Environment.from_json(json_str, kinematic, record)
     else:
         print("loading new ENV")
-        ENV = Environment(np.array([640,360,0], dtype=float), np.array([1260, 700], dtype=float), record)
+        ENV = Environment(np.array([640,360,0], dtype=float), np.array([1260, 700], dtype=float), kinematic, record)
     return ENV
 
 
@@ -101,7 +101,8 @@ class Environment:
     heading_koeff = 0
     comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
-    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, record = False, use_errors=False) -> None:
+    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, kinematic: KinematicModel = None, record = False, use_errors=False) -> None:
+        self.kinematic = kinematic if not kinematic is None else unicycleKin()
         self.use_erros= use_errors
         self.map_obstacles = []
         self.unknown_obstacles = []
@@ -157,9 +158,9 @@ class Environment:
 
     def update_robo_state(self, v, w, dt):
         old_state = self.robo_state
-        self.robo_state = move_turtle(old_state, v * random_koeff(0.05 if self.use_erros else 0), w * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
+        self.robo_state = self.kinematic(old_state, v * random_koeff(0.05 if self.use_erros else 0), w * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
         if self.use_erros:
-            self.internal_offset = move_turtle(old_state + self.internal_offset, v, w, dt) - self.robo_state
+            self.internal_offset = self.kinematic(old_state + self.internal_offset, v, w, dt) - self.robo_state
 
     def get_robo_angle(self) -> float:
         return self.robo_state[2]
@@ -253,7 +254,7 @@ class Environment:
             print(err, "\n", "obstacle_dist =", obstacle_dist)
             obstacle_fit = self.obstacle_koeff
         goal_vec = self.goal_pos - state[:2]
-        heading_vec = move_turtle(state, 10, 0, 1) - state
+        heading_vec = self.kinematic(state, 10, 0, 1) - state
         heading_fit = -(goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff
         # return  goal_fit + obstacle_fit # + heading_fit
         return  goal_fit + obstacle_fit - self.speed_koeff * np.linalg.norm(v)
@@ -282,9 +283,9 @@ class Environment:
         with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
             file.write(json.dumps(data, indent=2))
 
-    def from_json(json_string:str, record=False) -> "Environment":
+    def from_json(json_string:str, kinematic:KinematicModel = None, record=False) -> "Environment":
         data = json.loads(json_string)
-        new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), record)
+        new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), kinematic=kinematic, record=record)
         new_env.map_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
         new_env.unknown_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["unknowns"]])
         return new_env

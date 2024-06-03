@@ -1,7 +1,7 @@
 from environment import Environment
 from typing import Tuple
 import numpy as np
-from Turtlebot_Kinematics import move_turtle, translate_differential_drive
+from Turtlebot_Kinematics import KinematicModel, unicycleKin
 import shapely
 from functions import sigmoid
 from controller import Controller
@@ -14,35 +14,32 @@ class DWA_Controller(Controller):
     speed_koeff = 1
     comfort_dist = 2.0
 
-    def __init__(self, samples=20, max_v=22.2, min_v=-22.2) -> None:
+    def __init__(self, samples=20, kinematic: KinematicModel = None) -> None:
         self.samples = samples
-        self.max_v = max_v
-        self.min_v = min_v
+        self.kinematic = kinematic if not kinematic is None else unicycleKin()
 
-    def __call__(self, env: Environment, dt=2.0):
-        v_space = np.linspace(self.min_v, self.max_v, self.samples)
-        sensor_fusion = env.get_sensor_fusion()
+    def __call__(self, env: Environment, dt=2.0, sensor_fusion = None):
+        if sensor_fusion is None:
+            sensor_fusion == env.get_sensor_fusion()
         # grid sampling
         best_fit = -np.inf
         best_v = None
-        for v_right in v_space:
-            for v_left in v_space:
-                v, w = translate_differential_drive(v_left, v_right)
-                # print(v_left, v_right, "->", v_trans)
-                fit = self.fitness(env, env.get_internal_state(), v, w, dt, sensor_fusion=sensor_fusion)
-                if fit > best_fit:
-                    best_fit = fit
-                    best_v = (v,w)
+        for v1, v2 in self.kinematic.v_gen(self.samples):
+            # print(v_left, v_right, "->", v_trans)
+            fit = self.fitness(env, env.get_internal_state(), v1, v2, dt, sensor_fusion=sensor_fusion)
+            if fit > best_fit:
+                best_fit = fit
+                best_v = (v1,v2)
         if best_v is None:
             print("ERROR could not find best velocity", best_fit)
         else:
             print("best:", best_v, best_fit)
             return best_v
         
-    def fitness(self, env: Environment, cur_state: np.ndarray, v:float, w:float, dt, sensor_fusion=None):
+    def fitness(self, env: Environment, cur_state: np.ndarray, v1:float, v2:float, dt, sensor_fusion=None):
         if sensor_fusion is None:
             sensor_fusion = env.get_sensor_fusion()
-        next_state = move_turtle(cur_state, v, w, dt)
+        next_state = self.kinematic(cur_state, v1, v2, dt)
 
         if not sensor_fusion.is_empty:
             pos_point = shapely.Point(next_state[:2])
@@ -54,11 +51,11 @@ class DWA_Controller(Controller):
             dist_fit = 0
 
         goal_vec = env.goal_pos - next_state[:2]
-        heading_vec = move_turtle(next_state, 10, 0, 1) - next_state
+        heading_vec = self.kinematic.heading(next_state, v1, v2)
         #print("vecs:", goal_vec, heading_vec)
-        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v) if v != 0 else 1)
+        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
 
-        speed_fit = (v / self.max_v) * self.speed_koeff
+        speed_fit = self.kinematic.relativ_speed(v1, v2) * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 

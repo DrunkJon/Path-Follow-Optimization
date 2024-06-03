@@ -1,5 +1,6 @@
 from Runner import Runner, Environment, ControllMode
 import pygame
+from Turtlebot_Kinematics import unicycleKin
 from ui import *
 
 
@@ -128,7 +129,9 @@ if __name__ == "__main__":
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
 
-    ENV = load_ENV("Corner Long", record=False)
+    kinematic = unicycleKin()
+
+    ENV = load_ENV("Corner Long", kinematic=kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
@@ -140,11 +143,11 @@ if __name__ == "__main__":
     CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
-        controller = DWA_Controller()
+        controller = DWA_Controller(kinematic=kinematic)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
+        controller = Multi_PSO_Controller(10, kinematic=kinematic, horizon=horizon, dt=virtual_dt)
     elif CTRL == ControllMode.PSO:
-        controller = PSO_Controller(10, 22.2, -22.2, dt, horizon)
+        controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
     elif CTRL == ControllMode.Player:
         controller = None
