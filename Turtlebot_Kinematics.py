@@ -71,18 +71,20 @@ class KinematicModel():
         if velocities is None:
             velocities = np.zeros_like(ind)
         # ensures ind's velocities are within the limits and sets velocities 0 if they where outside possible range
-        if ind[0] < self.v1_min:
-            ind[0] = self.v1_min
-            velocities[1] = 0
-        elif ind[0] > self.v1_max:
-            ind[0] = self.v1_max
-            velocities[1] = 0
-        if ind[1] < self.v2_min:
-            ind[1] = self.v2_min
-            velocities[2] = 0
-        elif ind[1] > self.v2_max:
-            ind[1] = self.v2_max
-            velocities[2] = 0
+        for i in range(0, len(ind), 2):
+            if ind[i] < self.v1_min:
+                ind[i] = self.v1_min
+                velocities[i] = 0
+            elif ind[i] > self.v1_max:
+                ind[i] = self.v1_max
+                velocities[i] = 0
+            if ind[i+1] < self.v2_min:
+                ind[i+1] = self.v2_min
+                velocities[i+1] = 0
+            elif ind[i+1] > self.v2_max:
+                ind[i+1] = self.v2_max
+                velocities[i+1] = 0
+            assert self.v1_min <= ind[i] <= self.v1_max and self.v2_min <= ind[i+1] <= self.v2_max
         return ind, velocities
     
     # for models that care about agents direction
@@ -96,6 +98,7 @@ class KinematicModel():
         for _ in range(horizon):
             li.append(self.v1_min + np.random.rand() * v1_range) 
             li.append(self.v2_min + np.random.rand() * v2_range) 
+        assert max(li) <= max(self.v1_max, self.v2_max)
         return np.array(li)
 
 @dataclass
@@ -127,7 +130,7 @@ class difDriveKin(KinematicModel):
         return move_turtle(state, v, w, t)
     
     def relativ_speed(self, v1, v2) -> float:
-        v,_ = translate_differential_drive
+        v,_ = translate_differential_drive(v1, v2)
         return v / self.v1_max
 
 @dataclass

@@ -2,7 +2,7 @@ from environment import Environment
 import numpy as np
 from Turtlebot_Kinematics import KinematicModel, unicycleKin
 from time import time
-from functions import function_3, sigmoid
+from functions import function_3, sigmoid, comf_distance
 import shapely
 from controller import Controller
 
@@ -64,6 +64,8 @@ class Multi_PSO_Controller(Controller):
         for i in range(len(sub_vectors)-1):
             sub_vectors[i] = sub_vectors[i] * left_fac + sub_vectors[i+1] * right_fac  
         ind = np.array(sub_vectors[:-1]).flatten()
+        if -50 >= min(ind) or max(ind) >= 50:
+                raise Exception(f"velocities not snapped correctly ({ind})")
         return ind
     
     def next_pop(self, env: Environment, sensor_fusion, true_dt):
@@ -107,18 +109,27 @@ class Multi_PSO_Controller(Controller):
         new_velocity = velocity * inertia + cog * disturb(ind_best - ind) + soc * disturb(global_best - ind) 
         new_ind = ind + new_velocity
         new_ind, new_velocity = self.kinematic.snap_velocities(new_ind, new_velocity)
+        if -50 >= min(new_ind) or max(new_ind) >= 50:
+                raise Exception(f"velocities not snapped correctly ({new_ind})")
         return new_ind, new_velocity
 
     def apply_charged_forces(self, c_pop, pop, d):
         new_c_pop = []
+        avg_dists = []
         for i, x1 in enumerate(c_pop):
+            dists = []
             total_force = np.zeros_like(x1)
             for j, x2 in enumerate(c_pop + pop):
                 if i != j:
-                    total_force += function_3(x1, x2, d)
-            new_ind = np.array([i for i in x1 + total_force / (len(c_pop + pop) - 1)])
+                    total_force += comf_distance(x1, x2, d, k=0.1) #function_3(x1, x2, d)
+                    dists.append(np.linalg.norm(x2 - x1))
+            new_ind = x1 + total_force # / (len(c_pop + pop) - 1))
             new_ind, _ = self.kinematic.snap_velocities(new_ind)
+            if -50 >= min(new_ind) or max(new_ind) >= 50:
+                raise Exception(f"velocities not snapped correctly ({new_ind})")
             new_c_pop.append(new_ind)
+            avg_dists.append(sum(dists) / len(dists))
+        print("avg charged dist:", sum(avg_dists) / len(avg_dists))
         return new_c_pop
 
     def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=0.5):

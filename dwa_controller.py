@@ -14,9 +14,10 @@ class DWA_Controller(Controller):
     speed_koeff = 1
     comfort_dist = 2.0
 
-    def __init__(self, samples=20, kinematic: KinematicModel = None) -> None:
+    def __init__(self, samples=20, kinematic: KinematicModel = None, virtual_dt = 2.0) -> None:
         self.samples = samples
         self.kinematic = kinematic if not kinematic is None else unicycleKin()
+        self.virtual_dt = virtual_dt
 
     def __call__(self, env: Environment, dt=2.0, sensor_fusion = None):
         if sensor_fusion is None:
@@ -25,8 +26,7 @@ class DWA_Controller(Controller):
         best_fit = -np.inf
         best_v = None
         for v1, v2 in self.kinematic.v_gen(self.samples):
-            # print(v_left, v_right, "->", v_trans)
-            fit = self.fitness(env, env.get_internal_state(), v1, v2, dt, sensor_fusion=sensor_fusion)
+            fit = self.fitness(env, env.get_internal_state(), v1, v2, self.virtual_dt, sensor_fusion=sensor_fusion)
             if fit > best_fit:
                 best_fit = fit
                 best_v = (v1,v2)

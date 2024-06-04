@@ -127,8 +127,8 @@ class Environment:
     def get_internal_state(self):
         return self.robo_state + self.internal_offset
         
-    def step(self, v,w,dt):
-        self.update_robo_state(v,w,dt)
+    def step(self, v1, v2,dt):
+        self.update_robo_state(v1,v2,dt)
         self.time += dt
         self.record_state()
         
@@ -156,11 +156,11 @@ class Environment:
             angle = vec_angle(np.array([1,0]), delta)
             self.robo_state[2] = angle if delta[1] <= 0 else np.pi * 2 -angle
 
-    def update_robo_state(self, v, w, dt):
+    def update_robo_state(self, v1, v2, dt):
         old_state = self.robo_state
-        self.robo_state = self.kinematic(old_state, v * random_koeff(0.05 if self.use_erros else 0), w * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
+        self.robo_state = self.kinematic(old_state, v1 * random_koeff(0.05 if self.use_erros else 0), v2 * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
         if self.use_erros:
-            self.internal_offset = self.kinematic(old_state + self.internal_offset, v, w, dt) - self.robo_state
+            self.internal_offset = self.kinematic(old_state + self.internal_offset, v1, v2, dt) - self.robo_state
 
     def get_robo_angle(self) -> float:
         return self.robo_state[2]
@@ -237,7 +237,7 @@ class Environment:
         return pos_point.distance(sensor_fusion) / self.robo_radius
 
     # minimize:
-    def fitness_single(self, state = None, sensor_fusion = None, v=0):
+    def fitness_single(self, state = None, sensor_fusion = None, v: np.array = np.zeros(2)):
         if state is None:
             state = self.get_internal_state()
         if sensor_fusion == None:
@@ -254,7 +254,7 @@ class Environment:
             print(err, "\n", "obstacle_dist =", obstacle_dist)
             obstacle_fit = self.obstacle_koeff
         goal_vec = self.goal_pos - state[:2]
-        heading_vec = self.kinematic(state, 10, 0, 1) - state
+        heading_vec = self.kinematic.heading(state, v[0], v[1])
         heading_fit = -(goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff
         # return  goal_fit + obstacle_fit # + heading_fit
         return  goal_fit + obstacle_fit - self.speed_koeff * np.linalg.norm(v)

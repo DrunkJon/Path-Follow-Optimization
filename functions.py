@@ -11,3 +11,5 @@ def function_3(x1:np.ndarray, x2:np.ndarray, d, a=20.0, b=22.0):
     c = d**2 / np.log(b/a)
     return (a - (b * np.exp(- np.linalg.norm(x1-x2)**2 / c))) * (x2 - x1)
 
+def comf_distance(x1:np.ndarray, x2:np.ndarray, d, k=0.5):
+    return k * (np.linalg.norm(x2 - x1) - d) * (x2 - x1)

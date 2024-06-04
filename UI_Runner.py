@@ -1,6 +1,5 @@
 from Runner import Runner, Environment, ControllMode
 import pygame
-from Turtlebot_Kinematics import unicycleKin
 from ui import *
 
 
@@ -128,22 +127,23 @@ if __name__ == "__main__":
     from dwa_controller import DWA_Controller
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
+    from Turtlebot_Kinematics import difDriveKin, unicycleKin
 
-    kinematic = unicycleKin()
+    kinematic = difDriveKin()
 
-    ENV = load_ENV("Corner Long", kinematic=kinematic, record=False)
+    ENV = load_ENV("small wall", kinematic=kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
-    virtual_dt = 1.5
+    virtual_dt = 2.0
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
     horizon = 5
     ### type: DWA; MultiPSO; PSO; Player
     CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
-        controller = DWA_Controller(kinematic=kinematic)
+        controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
     elif CTRL == ControllMode.MultiPSO:
         controller = Multi_PSO_Controller(10, kinematic=kinematic, horizon=horizon, dt=virtual_dt)
     elif CTRL == ControllMode.PSO:

@@ -37,7 +37,7 @@ class Runner():
 
         
         if self.CTRL == ControllMode.DWA:
-            self.v, self.w = self.controller(self.ENV, dt=2.0, sensor_fusion = self.sensor)  
+            self.v, self.w = self.controller(self.ENV, dt=2.0, sensor_fusion=self.sensor)  
         elif self.CTRL == ControllMode.MultiPSO:
             self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor, true_dt=self.dt)
         elif self.CTRL == ControllMode.PSO:
@@ -63,8 +63,11 @@ if __name__ == "__main__":
     from dwa_controller import DWA_Controller
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
+    from Turtlebot_Kinematics import difDriveKin, unicycleKin
 
-    ENV = load_ENV("Corner Long", record=False)
+    kinematic = difDriveKin()
+
+    ENV = load_ENV("Corner Long", kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
@@ -75,14 +78,14 @@ if __name__ == "__main__":
     # iterations for (Multi)PSO Controller
     iterations = 7
     ### type: DWA; MultiPSO; PSO
-    CTRL = ControllMode.DWA
+    CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller()
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt, iterations)
+        controller = Multi_PSO_Controller(10, kinematic, horizon, virtual_dt, iterations)
     elif CTRL == ControllMode.PSO:
-        controller = PSO_Controller(10, 22.2, -22.2, dt, horizon, iterations)
+        controller = PSO_Controller(10, kinematic, dt)
         horizon = 1
     else:
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")
