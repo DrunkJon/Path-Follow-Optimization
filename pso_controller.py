@@ -50,7 +50,21 @@ class Multi_PSO_Controller(Controller):
         self.next_pop(env, sensor_fusion, true_dt)
         self.particle_swarm_optimization(env, iterations=self.iterations,sensor_fusion=sensor_fusion)
         if verbose: print(f"fit={self.global_fit} | {self.global_best[:2]}")
+        self.print_dist_info()
         return self.global_best[0], self.global_best[1]
+    
+    def print_dist_info(self):
+        full_pop = self.pop + self.charged_pop
+        dist_arr = np.zeros((len(full_pop), len(full_pop)))
+        for i in range(len(full_pop)):
+            for j in range(i, len(full_pop)):
+                dist = np.linalg.norm(full_pop[i] - full_pop[j])
+                dist_arr[i][j] = dist
+                dist_arr[j][i] = dist
+        pop_avg = np.average(dist_arr[:len(self.pop),:len(self.pop)])
+        charged_avg = np.average(dist_arr[len(self.pop):, :])
+        print("pop_avg:", round(pop_avg, 3))
+        print("chr_avg:", round(charged_avg, 3))
     
     def shift_ind(self, ind, true_dt):
         # true_dt is the time an action will actually be performed,
@@ -64,14 +78,14 @@ class Multi_PSO_Controller(Controller):
         for i in range(len(sub_vectors)-1):
             sub_vectors[i] = sub_vectors[i] * left_fac + sub_vectors[i+1] * right_fac  
         ind = np.array(sub_vectors[:-1]).flatten()
-        if -50 >= min(ind) or max(ind) >= 50:
-                raise Exception(f"velocities not snapped correctly ({ind})")
         return ind
     
     def next_pop(self, env: Environment, sensor_fusion, true_dt):
         for i in range(len(self.pop)):
             self.pop[i] = self.shift_ind(self.pop[i], true_dt)
-        self.charged_pop = self.gen_swarm()
+        # self.charged_pop = self.gen_swarm()
+        for i in range(len(self.charged_pop)):
+            self.charged_pop[i] = self.shift_ind(self.charged_pop[i], true_dt)
         self.velocities = [np.zeros_like(ind) for ind in self.pop]
         self.individual_best = list(self.pop)
         self.individual_fit = [self.fitness(ind, env, sensor_fusion) for ind in self.individual_best]
@@ -109,27 +123,20 @@ class Multi_PSO_Controller(Controller):
         new_velocity = velocity * inertia + cog * disturb(ind_best - ind) + soc * disturb(global_best - ind) 
         new_ind = ind + new_velocity
         new_ind, new_velocity = self.kinematic.snap_velocities(new_ind, new_velocity)
-        if -50 >= min(new_ind) or max(new_ind) >= 50:
-                raise Exception(f"velocities not snapped correctly ({new_ind})")
         return new_ind, new_velocity
 
     def apply_charged_forces(self, c_pop, pop, d):
         new_c_pop = []
-        avg_dists = []
         for i, x1 in enumerate(c_pop):
-            dists = []
             total_force = np.zeros_like(x1)
             for j, x2 in enumerate(c_pop + pop):
                 if i != j:
-                    total_force += comf_distance(x1, x2, d, k=0.1) #function_3(x1, x2, d)
-                    dists.append(np.linalg.norm(x2 - x1))
-            new_ind = x1 + total_force # / (len(c_pop + pop) - 1))
+                    f = function_3(x1, x2, d)
+                    total_force += f
+            print("TOTAL:", total_force)
+            new_ind = x1 + total_force / (len(c_pop + pop) - 1)
             new_ind, _ = self.kinematic.snap_velocities(new_ind)
-            if -50 >= min(new_ind) or max(new_ind) >= 50:
-                raise Exception(f"velocities not snapped correctly ({new_ind})")
             new_c_pop.append(new_ind)
-            avg_dists.append(sum(dists) / len(dists))
-        print("avg charged dist:", sum(avg_dists) / len(avg_dists))
         return new_c_pop
 
     def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=0.5):
@@ -140,7 +147,7 @@ class Multi_PSO_Controller(Controller):
         fit = lambda ind: self.fitness(ind, env, sensor_fusion=sensor_fusion)
         for iteration in range(iterations):
             new_pop = []
-            self.charged_pop = self.apply_charged_forces(self.charged_pop, self.pop, d=2)
+            self.charged_pop = self.apply_charged_forces(self.charged_pop, self.pop, d=80)
             for vec in self.charged_pop:
                 f = fit(vec)
                 if f < self.global_fit:
