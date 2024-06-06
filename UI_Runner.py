@@ -110,7 +110,7 @@ class UI_Runner(Runner):
             # renders obstacles, goal and actual robo position
             render_environment(self.ENV, self.screen)
             # creates red overlay of where robot thinks obstacles are
-            render_sensor_fusion(self.ENV, self.screen, sensor_fusion=self.sensor)
+            # render_sensor_fusion(self.ENV, self.screen, sensor_fusion=self.sensor)
             # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
             if self.CTRL in [ControllMode.MultiPSO, ControllMode.PSO]:
                 render_particle_trajectories(self.ENV, self.controller, self.screen)
@@ -137,22 +137,23 @@ if __name__ == "__main__":
     from Turtlebot_Kinematics import difDriveKin, unicycleKin
 
     kinematic = unicycleKin()
+    kinematic.v1_min = -5.0
 
-    ENV = load_ENV("Corner Long no ob", kinematic=kinematic, record=False)
+    ENV = load_ENV("cluttered_map", kinematic=kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
-    virtual_dt = 2.0
+    virtual_dt = 0.65
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
     horizon = 12
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.PSO
+    CTRL = ControllMode.DWA
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(5, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=3)
+        controller = Multi_PSO_Controller(5, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=5)
     elif CTRL == ControllMode.PSO:
         controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
@@ -163,4 +164,4 @@ if __name__ == "__main__":
 
     # UI with Player Control
     runner = UI_Runner(ENV, CTRL, controller, dt=dt, apply_control=True)
-    runner.loop(visualize_fitness=True)
+    runner.loop(visualize_fitness=False)

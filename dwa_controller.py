@@ -10,8 +10,8 @@ from controller import Controller
 class DWA_Controller(Controller):
 
     dist_koeff = -500
-    heading_koeff = 15
-    speed_koeff = 5
+    heading_koeff = 10
+    speed_koeff = 30
     comfort_dist = 3.0
 
     def __init__(self, samples=20, kinematic: KinematicModel = None, virtual_dt = 2.0) -> None:

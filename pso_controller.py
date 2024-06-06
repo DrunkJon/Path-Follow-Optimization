@@ -149,7 +149,7 @@ class Multi_PSO_Controller(Controller):
             new_c_pop.append(new_ind)
         self.charged_pop = new_c_pop
 
-    def apply_charged_forces(self, c_pop, d, charge=50.0):
+    def apply_charged_forces(self, c_pop, d, charge=75.0):
         pop_offset = len(self.pop)
         for i, x1 in enumerate(c_pop):
             total_force = np.zeros_like(x1)
