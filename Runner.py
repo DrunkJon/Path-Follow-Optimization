@@ -25,6 +25,7 @@ class Runner():
         self.controller = controller
         if CTRL == ControllMode.Controller:
             assert controller != None
+        self.apply_control = True
     
 
     def step(self, verbose = True):
@@ -44,7 +45,8 @@ class Runner():
             self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor)
         
         # next simulation step
-        self.ENV.step(self.v, self.w, self.dt)
+        if self.apply_control:
+            self.ENV.step(self.v, self.w, self.dt)
 
         # determine if finished
         if self.step_count >= self.max_step or self.ENV.get_dist_to_goal() < self.ENV.robo_radius:

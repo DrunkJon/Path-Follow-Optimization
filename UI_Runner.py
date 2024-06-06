@@ -36,13 +36,14 @@ def animation_controll(ENV, animation_gen):
 
 
 class UI_Runner(Runner):
-    def __init__(self, ENV: Environment, CTRL: ControllMode, controller=None, max_step=1000, dt=0.1) -> None:
+    def __init__(self, ENV: Environment, CTRL: ControllMode, controller=None, max_step=1000, dt=0.1, apply_control=True) -> None:
         super().__init__(ENV, CTRL, controller, max_step, dt)
         pygame.init()
         self.screen = pygame.display.set_mode((1600, 900))
         self.fit_surface = self.screen.copy()
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(None, 24)
+        self.apply_control = apply_control
     
     def loop(self, visualize_fitness=True):
         if visualize_fitness:
@@ -68,6 +69,11 @@ class UI_Runner(Runner):
                 break
             if keys[pygame.K_LCTRL] and keys[pygame.K_s]:
                 self.ENV.to_json()
+            # change whether control should be applied
+            if keys[pygame.K_PERIOD]:
+                self.apply_control = True
+            elif keys[pygame.K_COMMA]:
+                self.apply_control = False
 
             # MouseMode
             if keys[pygame.K_F1]:
@@ -136,7 +142,7 @@ if __name__ == "__main__":
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
-    virtual_dt = 2.0
+    virtual_dt = 1.5
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
     horizon = 5
     ### type: DWA; MultiPSO; PSO; Player
@@ -145,7 +151,7 @@ if __name__ == "__main__":
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(10, kinematic=kinematic, horizon=horizon, dt=virtual_dt)
+        controller = Multi_PSO_Controller(10, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=5)
     elif CTRL == ControllMode.PSO:
         controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
@@ -155,5 +161,5 @@ if __name__ == "__main__":
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")
 
     # UI with Player Control
-    runner = UI_Runner(ENV, CTRL, controller, dt=dt)
+    runner = UI_Runner(ENV, CTRL, controller, dt=dt, apply_control=False)
     runner.loop(visualize_fitness=False)

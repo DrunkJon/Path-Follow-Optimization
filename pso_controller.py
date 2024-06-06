@@ -37,8 +37,8 @@ class Multi_PSO_Controller(Controller):
 
         self.pop = self.gen_swarm()
         self.charged_pop = self.gen_swarm()
-        self.velocities = [np.zeros_like(ind) for ind in self.pop]
-        self.individual_best = list(self.pop)
+        self.velocities = [np.zeros_like(ind) for ind in self.pop + self.charged_pop]
+        self.individual_best = list(self.pop + self.charged_pop)
         self.individual_fit = [np.infty for _ in self.individual_best]
         self.global_best = self.individual_best[np.argmin(self.individual_fit)]
         self.global_fit = np.min(self.individual_fit)
@@ -82,12 +82,12 @@ class Multi_PSO_Controller(Controller):
     
     def next_pop(self, env: Environment, sensor_fusion, true_dt):
         for i in range(len(self.pop)):
-            self.pop[i] = self.shift_ind(self.pop[i], true_dt)
+            self.pop[i] = self.shift_ind(self.individual_best[i], true_dt)
         # self.charged_pop = self.gen_swarm()
         for i in range(len(self.charged_pop)):
-            self.charged_pop[i] = self.shift_ind(self.charged_pop[i], true_dt)
-        self.velocities = [np.zeros_like(ind) for ind in self.pop]
-        self.individual_best = list(self.pop)
+            self.charged_pop[i] = self.shift_ind(self.individual_best[i + len(self.pop)], true_dt)
+        self.velocities = [np.zeros_like(ind) for ind in self.pop + self.charged_pop]
+        self.individual_best = list(self.pop + self.charged_pop)
         self.individual_fit = [self.fitness(ind, env, sensor_fusion) for ind in self.individual_best]
         self.global_best = self.individual_best[np.argmin(self.individual_fit)]
         self.global_fit = np.min(self.individual_fit)
@@ -127,38 +127,39 @@ class Multi_PSO_Controller(Controller):
 
     def apply_charged_forces(self, c_pop, pop, d):
         new_c_pop = []
+        pop_offset = len(self.pop)
         for i, x1 in enumerate(c_pop):
             total_force = np.zeros_like(x1)
             for j, x2 in enumerate(c_pop + pop):
                 if i != j:
-                    f = function_3(x1, x2, d)
+                    f = function_3(x1, x2, d, k = 2.5)
                     total_force += f
-            print("TOTAL:", total_force)
-            new_ind = x1 + total_force / (len(c_pop + pop) - 1)
-            new_ind, _ = self.kinematic.snap_velocities(new_ind)
+            total_force /= (len(c_pop + pop) - 1)
+            # print("TOTAL:", total_force)
+            self.velocities[i + pop_offset] = total_force
+            new_ind = x1 + total_force
+            new_ind, self.velocities[i+pop_offset] = self.kinematic.snap_velocities(new_ind, self.velocities[i + pop_offset])
             new_c_pop.append(new_ind)
-        return new_c_pop
+        self.charged_pop = new_c_pop
 
-    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=0.5):
-        start = time()
+    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=10):
         # ATTENTION!: fitness is minimized
         if sensor_fusion == None:
             sensor_fusion = env.get_sensor_fusion()
         fit = lambda ind: self.fitness(ind, env, sensor_fusion=sensor_fusion)
         for iteration in range(iterations):
             new_pop = []
-            self.charged_pop = self.apply_charged_forces(self.charged_pop, self.pop, d=80)
-            for vec in self.charged_pop:
-                f = fit(vec)
-                if f < self.global_fit:
-                    self.global_fit = f
-                    self.global_best = vec
-            for i,ind in enumerate(self.pop):
+            new_charged_pop = []
+            self.apply_charged_forces(self.charged_pop, self.pop, d=90)
+            for i,ind in enumerate(self.pop + self.charged_pop):
                 if turbulence >= np.linalg.norm(self.velocities[i]) and iteration > 0:
                     new_ind = self.kinematic.generate_v_vector(self.horizon)
                 else:
                     new_ind, self.velocities[i] = self.apply_swarm_forces(ind, self.individual_best[i], self.global_best, self.velocities[i])
-                new_pop.append(new_ind)
+                if i < len(self.pop):
+                    new_pop.append(new_ind)
+                else:
+                    new_charged_pop.append(new_ind)
                 new_fit = fit(new_ind)
                 if new_fit < self.individual_fit[i]:
                     self.individual_fit[i] = new_fit
