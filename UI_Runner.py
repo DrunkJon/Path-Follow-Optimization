@@ -114,6 +114,7 @@ class UI_Runner(Runner):
             # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
             if self.CTRL in [ControllMode.MultiPSO, ControllMode.PSO]:
                 render_particle_trajectories(self.ENV, self.controller, self.screen)
+            render_dir_line(self.screen, self.ENV.get_internal_state(), self.ENV.robo_radius)
 
             img = self.font.render(f'Mode:{MODE.to_str()}', True, "black")
             self.screen.blit(img, (20, 20))
@@ -135,23 +136,23 @@ if __name__ == "__main__":
     from environment import load_ENV
     from Turtlebot_Kinematics import difDriveKin, unicycleKin
 
-    kinematic = difDriveKin()
+    kinematic = unicycleKin()
 
-    ENV = load_ENV("small wall", kinematic=kinematic, record=False)
+    ENV = load_ENV("Corner Long no ob", kinematic=kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
-    virtual_dt = 1.5
+    virtual_dt = 2.0
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
-    horizon = 5
+    horizon = 12
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.MultiPSO
+    CTRL = ControllMode.PSO
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(10, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=5)
+        controller = Multi_PSO_Controller(5, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=3)
     elif CTRL == ControllMode.PSO:
         controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
@@ -161,5 +162,5 @@ if __name__ == "__main__":
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")
 
     # UI with Player Control
-    runner = UI_Runner(ENV, CTRL, controller, dt=dt, apply_control=False)
-    runner.loop(visualize_fitness=False)
+    runner = UI_Runner(ENV, CTRL, controller, dt=dt, apply_control=True)
+    runner.loop(visualize_fitness=True)

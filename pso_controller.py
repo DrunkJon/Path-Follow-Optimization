@@ -28,6 +28,8 @@ def disturb(vec):
 ####### Multi PSO ######
 class Multi_PSO_Controller(Controller):
     v_dim = 2
+    inertia = 1.3
+
     def __init__(self, samples=10, kinematic: KinematicModel = None, horizon=10, dt=0.05, iterations=10) -> None:
         self.samples = samples
         self.kinematic = kinematic if not kinematic is None else unicycleKin()
@@ -66,12 +68,15 @@ class Multi_PSO_Controller(Controller):
         print("pop_avg:", round(pop_avg, 3))
         print("chr_avg:", round(charged_avg, 3))
     
-    def shift_ind(self, ind, true_dt):
+    def shift_ind(self, ind, true_dt, maintain_course=False):
         # true_dt is the time an action will actually be performed,
         # self.dt is the time of a simulation step
         # this function assumes the first action of ind has been performed for true_dt and shifts the remaining actions to maintain the current trajectory
         sub_vectors = [ind[i:i+self.v_dim] for i in range(0, len(ind), self.v_dim)]
-        sub_vectors.append(self.kinematic.generate_v_vector(horizon=1))
+        if maintain_course:
+            sub_vectors.append(sub_vectors[-1])
+        else:
+            sub_vectors.append(self.kinematic.generate_v_vector(horizon=1))
         assert self.dt >= true_dt
         left_fac = (self.dt - true_dt) / self.dt
         right_fac = (true_dt) / self.dt
@@ -81,11 +86,13 @@ class Multi_PSO_Controller(Controller):
         return ind
     
     def next_pop(self, env: Environment, sensor_fusion, true_dt):
-        for i in range(len(self.pop)):
-            self.pop[i] = self.shift_ind(self.individual_best[i], true_dt)
-        # self.charged_pop = self.gen_swarm()
-        for i in range(len(self.charged_pop)):
-            self.charged_pop[i] = self.shift_ind(self.individual_best[i + len(self.pop)], true_dt)
+        for i in range(self.samples * 2):
+            maintain_course = self.global_fit == self.individual_fit[i]
+            new_ind = self.shift_ind(self.individual_best[i], true_dt, maintain_course=maintain_course)
+            if i < self.samples:
+                self.pop[i] = new_ind
+            else:
+                self.charged_pop[i - self.samples] = new_ind
         self.velocities = [np.zeros_like(ind) for ind in self.pop + self.charged_pop]
         self.individual_best = list(self.pop + self.charged_pop)
         self.individual_fit = [self.fitness(ind, env, sensor_fusion) for ind in self.individual_best]
@@ -119,13 +126,13 @@ class Multi_PSO_Controller(Controller):
     def gen_swarm(self):
         return [self.kinematic.generate_v_vector(self.horizon) for _ in range(self.samples)]
 
-    def apply_swarm_forces(self, ind, ind_best, global_best, velocity, inertia=1.3, cog=1.5, soc=1.5):
-        new_velocity = velocity * inertia + cog * disturb(ind_best - ind) + soc * disturb(global_best - ind) 
+    def apply_swarm_forces(self, ind, ind_best, global_best, velocity, cog=1.5, soc=1.5):
+        new_velocity = velocity * self.inertia + cog * disturb(ind_best - ind) + soc * disturb(global_best - ind) 
         new_ind = ind + new_velocity
         new_ind, new_velocity = self.kinematic.snap_velocities(new_ind, new_velocity)
         return new_ind, new_velocity
 
-    def apply_charged_forces(self, c_pop, pop, d):
+    def apply_charged_forces_old(self, c_pop, pop, d):
         new_c_pop = []
         pop_offset = len(self.pop)
         for i, x1 in enumerate(c_pop):
@@ -142,7 +149,21 @@ class Multi_PSO_Controller(Controller):
             new_c_pop.append(new_ind)
         self.charged_pop = new_c_pop
 
-    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=10):
+    def apply_charged_forces(self, c_pop, d, charge=50.0):
+        pop_offset = len(self.pop)
+        for i, x1 in enumerate(c_pop):
+            total_force = np.zeros_like(x1)
+            for j, x2 in enumerate(c_pop):
+                if i != j:
+                    dif_vec = x1 - x2
+                    norm = np.linalg.norm(dif_vec)
+                    if norm == 0: continue 
+                    f = (charge**2 / norm**3) * dif_vec
+                    total_force += f
+            # print("TOTAL:", total_force)
+            self.velocities[i + pop_offset] += total_force / self.inertia
+
+    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=5):
         # ATTENTION!: fitness is minimized
         if sensor_fusion == None:
             sensor_fusion = env.get_sensor_fusion()
@@ -150,7 +171,7 @@ class Multi_PSO_Controller(Controller):
         for iteration in range(iterations):
             new_pop = []
             new_charged_pop = []
-            self.apply_charged_forces(self.charged_pop, self.pop, d=90)
+            self.apply_charged_forces(self.charged_pop, d=90)
             for i,ind in enumerate(self.pop + self.charged_pop):
                 if turbulence >= np.linalg.norm(self.velocities[i]) and iteration > 0:
                     new_ind = self.kinematic.generate_v_vector(self.horizon)
@@ -180,14 +201,14 @@ class PSO_Controller(Multi_PSO_Controller):
     comfort_dist = 2
 
     def __init__(self, samples=10, kinematic: KinematicModel = None, dt=0.5) -> None:
-        super().__init__(samples, KinematicModel, 1, dt)
+        super().__init__(samples, kinematic, 1, dt)
 
     def next_pop(self, env: Environment, sensor_fusion, true_dt):
         self.pop = self.gen_swarm()
         self.pop[0] = self.global_best
         self.charged_pop = self.gen_swarm()
-        self.velocities = [np.zeros_like(ind) for ind in self.pop]
-        self.individual_best = list(self.pop)
+        self.velocities = [np.zeros_like(ind) for ind in self.pop + self.charged_pop]
+        self.individual_best = list(self.pop + self.charged_pop)
         self.individual_fit = [self.fitness(ind, env, sensor_fusion) for ind in self.individual_best]
         self.global_best = self.individual_best[np.argmin(self.individual_fit)]
         self.global_fit = np.min(self.individual_fit)
@@ -200,11 +221,13 @@ class PSO_Controller(Multi_PSO_Controller):
         next_state = self.kinematic(cur_state, v1, v2, self.dt)
 
         if not sensor_fusion.is_empty:
-            pos_point = shapely.Point(next_state[:2])
-            dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
-            if dist <= 1:
-                return - np.inf
-            dist_fit = (1 - sigmoid((dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) * self.dist_koeff
+            dist_fit = np.inf
+            for state in [self.kinematic(cur_state, v1, v2, self.dt / 5 * i) for i in range(5)]:
+                pos_point = shapely.Point(state[:2])
+                dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
+                if dist <= 1:
+                    return - np.inf
+                dist_fit = min(dist_fit, (1 - sigmoid((dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) * self.dist_koeff)
         else:
             dist_fit = 0
 
@@ -213,7 +236,7 @@ class PSO_Controller(Multi_PSO_Controller):
         #print("vecs:", goal_vec, heading_vec)
         heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * np.sign(v1)
 
-        speed_fit = self.kinematic.relativ_speed * self.speed_koeff
+        speed_fit = self.kinematic.relativ_speed(v1,v2) * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 

@@ -11,8 +11,8 @@ class DWA_Controller(Controller):
 
     dist_koeff = -500
     heading_koeff = 15
-    speed_koeff = 1
-    comfort_dist = 2.0
+    speed_koeff = 5
+    comfort_dist = 3.0
 
     def __init__(self, samples=20, kinematic: KinematicModel = None, virtual_dt = 2.0) -> None:
         self.samples = samples
@@ -42,11 +42,13 @@ class DWA_Controller(Controller):
         next_state = self.kinematic(cur_state, v1, v2, dt)
 
         if not sensor_fusion.is_empty:
-            pos_point = shapely.Point(next_state[:2])
-            dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
-            if dist <= 1:
-                return - np.inf
-            dist_fit = (1 - sigmoid((dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) * self.dist_koeff
+            dist_fit = np.inf
+            for state in [self.kinematic(cur_state, v1, v2, dt / 5 * i) for i in range(5)]:
+                pos_point = shapely.Point(state[:2])
+                dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
+                if dist <= 1:
+                    return - np.inf
+                dist_fit = min(dist_fit, (1 - sigmoid((dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) * self.dist_koeff)
         else:
             dist_fit = 0
 

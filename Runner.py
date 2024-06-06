@@ -33,6 +33,7 @@ class Runner():
         if verbose: print("#",self.step_count)
         # gets combined sensor and map data for various simulations
         self.sensor = self.ENV.get_sensor_fusion()
+        if self.sensor.is_empty: raise Exception("Empty sensor fusion")
         # online data collection of closest obstacles
         self.distances.append(self.ENV.get_obstacle_dist(sensor_fusion=self.sensor))
 

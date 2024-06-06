@@ -67,9 +67,12 @@ def render_obstacle(ob: Obstacle, surface: pygame.Surface, color = "grey"):
 def render_robo(robo_state: np.ndarray, radius: float, surface: pygame.Surface, color="black"):
     robo_vec = array_to_vec(robo_state)
     pygame.draw.circle(surface, color, robo_vec, radius)
+
+def render_dir_line(surface: pygame.Surface, robo_state: np.array, radius:float, color="red"):
+    robo_vec = array_to_vec(robo_state)
     direction_delta = rotate(np.array([radius,0]), robo_state[2])
     line_end = pygame.Vector2(robo_vec.x + direction_delta[0], robo_vec.y + direction_delta[1])
-    pygame.draw.aaline(surface, "white", robo_vec, line_end)
+    pygame.draw.aaline(surface, color, robo_vec, line_end)
 
 def render_radius(robo_state: np.ndarray, radius: float, surface: pygame.Surface, color="black"):
     robo_vec = array_to_vec(robo_state)
@@ -166,8 +169,9 @@ def render_fitness(env: Environment, surface: pygame.Surface):
 
 def render_particle_trajectories(env:Environment, ctrl: Multi_PSO_Controller, surface: pygame.Surface):
     cur_state = env.get_internal_state()
-    trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.individual_best]
-    charged_trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.charged_pop]
+    pop_offset = len(ctrl.pop)
+    trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.individual_best[:pop_offset]]
+    charged_trajecories = [ctrl.get_trajectory(ind, cur_state) for ind in ctrl.individual_best[pop_offset:]]
     for traj in charged_trajecories:
         traj = [state[:2] for state in traj]
         pygame.draw.aalines(surface, "grey", False, traj)

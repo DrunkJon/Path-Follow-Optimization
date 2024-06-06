@@ -223,6 +223,8 @@ class Environment:
         scan_dists = self.get_distance_scans()
         scan_cords = self.get_internal_scan_cords(scan_dists)
         scan_point_cloud = shapely.unary_union([shapely.Point(cord) for cord,dist in zip(scan_cords, scan_dists) if dist <= self.max_scan_dist - 0.1])
+        if scan_point_cloud.is_empty:
+            print("scan empty")
         map_poly = shapely.unary_union([shapely.Polygon(obs.translate_corners()) for obs in self.map_obstacles])
         if point_cloud:
             return scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
