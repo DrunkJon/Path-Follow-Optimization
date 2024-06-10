@@ -139,16 +139,16 @@ if __name__ == "__main__":
     kinematic = unicycleKin()
     kinematic.v1_min = -5.0
 
-    ENV = load_ENV("cluttered_map", kinematic=kinematic, record=False)
+    ENV = load_ENV("tight_map", kinematic=kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
-    virtual_dt = 0.65
+    virtual_dt = 0.75
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
-    horizon = 12
+    horizon = 8
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.DWA
+    CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)

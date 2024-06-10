@@ -13,7 +13,7 @@ class ControllMode(Enum):
 
 
 class Runner():
-    def __init__(self, ENV:Environment, CTRL:ControllMode, controller=None, max_step=1000, dt=0.1) -> None:
+    def __init__(self, ENV:Environment, CTRL:ControllMode, controller=None, max_step=1000, dt=0.1, save_path=None) -> None:
         self.step_count = 0
         self.max_step = max_step
         self.ENV = ENV
@@ -24,8 +24,9 @@ class Runner():
         self.CTRL = CTRL
         self.controller = controller
         if CTRL == ControllMode.Controller:
-            assert controller != None
+            assert not controller is None
         self.apply_control = True
+        self.save_path = save_path
     
 
     def step(self, verbose = True):
@@ -60,7 +61,8 @@ class Runner():
             # simulation step
             self.step()
         # exports env data
-        self.ENV.finish_up()
+        self.ENV.finish_up(self.save_path)
+        
         
 if __name__ == "__main__":
     from dwa_controller import DWA_Controller
@@ -70,7 +72,7 @@ if __name__ == "__main__":
 
     kinematic = difDriveKin()
 
-    ENV = load_ENV("Corner Long", kinematic, record=False)
+    ENV = load_ENV("Corner Long", kinematic, record=True)
 
     # length of one simulation tick
     dt = 0.1

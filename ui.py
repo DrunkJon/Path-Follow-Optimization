@@ -86,8 +86,9 @@ def render_environment(env: Environment, surface: pygame.Surface, internal = Fal
     if env.cur_ob != None:
         render_obstacle(env.cur_ob, surface, color="black")
     # render goal
-    pygame.draw.circle(surface, "yellow", array_to_vec(env.goal_pos), 10)
-    pygame.draw.circle(surface, "black", array_to_vec(env.goal_pos), 10, 2)    
+    print("goal_pos", env.get_goal_pos())
+    pygame.draw.circle(surface, "yellow", array_to_vec(env.get_goal_pos()), 10)
+    pygame.draw.circle(surface, "black", array_to_vec(env.get_goal_pos()), 10, 2)    
     # render robot
     robo_state = env.robo_state if not internal else env.get_internal_state()
     render_robo(robo_state, env.robo_radius, surface)

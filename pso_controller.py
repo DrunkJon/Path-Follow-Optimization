@@ -2,9 +2,10 @@ from environment import Environment
 import numpy as np
 from Turtlebot_Kinematics import KinematicModel, unicycleKin
 from time import time
-from functions import function_3, sigmoid, comf_distance
+from functions import function_3, sigmoid
 import shapely
 from controller import Controller
+
 
 def timer(func):
     def inner(*args, **kwargs):
@@ -21,6 +22,9 @@ def ind_to_vectorlist(ind):
         out.append(sub_vec)
     return out
 
+def dist_scaling(dist, comf_dist, fac=1.25, real_frac=0.5):
+    return (sigmoid((comf_dist - dist) * fac) * dist + real_frac*dist) / (1 + real_frac)
+
 def disturb(vec):
     return vec * np.random.rand(len(vec))
 
@@ -29,6 +33,14 @@ def disturb(vec):
 class Multi_PSO_Controller(Controller):
     v_dim = 2
     inertia = 1.3
+    # values for fitness function
+    collision_penalty = 50000
+    goal_koeff = 120
+    goal_exp = 0.8
+    speed_koeff = 5
+    obstacle_koeff = 600
+    heading_koeff = 0
+    comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
     def __init__(self, samples=10, kinematic: KinematicModel = None, horizon=10, dt=0.05, iterations=10) -> None:
         self.samples = samples
@@ -111,17 +123,23 @@ class Multi_PSO_Controller(Controller):
         cur_state = env.get_internal_state()
         if sensor_fusion is None:
             sensor_fusion = env.get_sensor_fusion()
-        overall_fit = 0
+        goal_sum = 0
+        ob_fits = []
+        speed_sum = 0
         for i, (v, w) in enumerate(trans_v_list):
             cur_state = self.kinematic(cur_state, v, w, self.dt)
             positions.append(cur_state)
-            fit = env.fitness_single(cur_state, sensor_fusion=sensor_fusion, v=np.array([v,w]))
-            if fit >= env.collision_penalty:
-                overall_fit += env.collision_penalty * (len(trans_v_list) - i)
+            goal_fit, obst_fit, speed_fit = self.fitness_single(env, cur_state, sensor_fusion, np.array([v,w]), self.dt * (i + 1))
+            if obst_fit >= self.collision_penalty:
+                ob_fits += [self.collision_penalty] * (len(trans_v_list) - i)
                 break
             else: 
-                overall_fit += fit*(discount**i)
-        return overall_fit
+                goal_sum += goal_fit*(discount**i)
+                ob_fits.append(obst_fit)
+                speed_sum += speed_fit*(discount**i)
+        ob_min = min(ob_fits)
+        ob_sum = sum( [(ob*3 + ob_min)/4 *discount**i for i,ob in enumerate(ob_fits)] )
+        return goal_sum + ob_sum + speed_sum
 
     def gen_swarm(self):
         return [self.kinematic.generate_v_vector(self.horizon) for _ in range(self.samples)]
@@ -149,7 +167,7 @@ class Multi_PSO_Controller(Controller):
             new_c_pop.append(new_ind)
         self.charged_pop = new_c_pop
 
-    def apply_charged_forces(self, c_pop, d, charge=75.0):
+    def apply_charged_forces(self, c_pop, d, charge=5.0):
         pop_offset = len(self.pop)
         for i, x1 in enumerate(c_pop):
             total_force = np.zeros_like(x1)
@@ -190,6 +208,27 @@ class Multi_PSO_Controller(Controller):
                         self.global_best = new_ind
             self.pop = new_pop
         return self.global_best, self.global_fit
+    
+    # minimize:
+    def fitness_single(self, env:Environment, state: np.array, sensor_fusion, v: np.array = np.zeros(2), dt:float = 0.0):
+        goal_pos = env.get_goal_pos(dt)
+        pos_point = shapely.Point(state[:2])
+        obstacle_dist = pos_point.distance(sensor_fusion) / env.robo_radius
+        goal_dist = pos_point.distance(shapely.Point(goal_pos)) / env.robo_radius
+        goal_fit = self.goal_koeff * (goal_dist ** self.goal_exp)
+        speed_fit = -self.speed_koeff * np.linalg.norm(v)
+        if obstacle_dist <= 1:
+            return goal_fit, self.collision_penalty, speed_fit
+        try:
+            obstacle_fit = 0 if sensor_fusion.is_empty or obstacle_dist >= self.comfort_dist else self.obstacle_koeff * (self.comfort_dist - obstacle_dist) / self.comfort_dist
+        except OverflowError as err:
+            print(err, "\n", "obstacle_dist =", obstacle_dist)
+            obstacle_fit = self.col
+        goal_vec = goal_pos - state[:2]
+        heading_vec = env.kinematic.heading(state, v[0], v[1])
+        heading_fit = -(goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff
+        # return  goal_fit + obstacle_fit # + heading_fit
+        return  goal_fit, obstacle_fit, speed_fit
     
 
 ####### Single PSO ######

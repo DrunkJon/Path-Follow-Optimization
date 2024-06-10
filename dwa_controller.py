@@ -43,23 +43,27 @@ class DWA_Controller(Controller):
 
         if not sensor_fusion.is_empty:
             dist_fit = np.inf
+            heading_fits = []
             for state in [self.kinematic(cur_state, v1, v2, dt / 5 * i) for i in range(5)]:
                 pos_point = shapely.Point(state[:2])
                 dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
                 if dist <= 1:
                     return - np.inf
-                dist_fit = min(dist_fit, (1 - sigmoid((dist - self.comfort_dist / 2) * 4 / self.comfort_dist)) * self.dist_koeff)
+                dist_fit = min(dist_fit, max(1 - (dist / self.comfort_dist), 0) * self.dist_koeff)
+                goal_vec = env.get_goal_pos(dt) - state[:2]
+                heading_vec = self.kinematic.heading(state, v1, v2)
+                heading_fits.append(
+                    (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) 
+                    * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
+                )
+            heading_fit = np.average(heading_fits)
         else:
             dist_fit = 0
-
-        goal_vec = env.goal_pos - next_state[:2]
-        heading_vec = self.kinematic.heading(next_state, v1, v2)
-        #print("vecs:", goal_vec, heading_vec)
-        heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
+            goal_vec = env.goal_pos - next_state[:2]
+            heading_vec = self.kinematic.heading(next_state, v1, v2)
+            heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
 
         speed_fit = self.kinematic.relativ_speed(v1, v2) * self.speed_koeff
-
-        #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 
         return dist_fit + heading_fit + speed_fit
         

@@ -1,6 +1,8 @@
 import numpy as np
 import json
 
+from pygame import ver
+
 ROBO_RADIUS = 16
 
 def rotation_matrix(angle):
@@ -49,13 +51,13 @@ def base_map():
     _map["unknowns"] = []
     return _map
 
-def tight_map(tightness = 2.5, length = 100.0):
+def tight_map(tightness = 2.5, length = 100.0, vertical_offset = 0.0):
     _map = base_map()
     start_point1 = [300 - length / 2 , 0]
     start_point2 = [300 - length / 2 , 600]
     height = 300 - tightness * ROBO_RADIUS
-    _map["obstacles"].append(rectangle(start_point1, length, height))
-    _map["obstacles"].append(rectangle(start_point2, length, -height))
+    _map["obstacles"].append(rectangle(start_point1, length, height - vertical_offset))
+    _map["obstacles"].append(rectangle(start_point2, length, -height - vertical_offset))
     return _map
 
 def wall_map(height = 50.0, depth = 0.0):
@@ -86,9 +88,9 @@ def save_map(_map, name:str, directory = "./levels"):
 
 
 if __name__ == "__main__":
-    # _map = tight_map(length=50, tightness=1.5)
-    # save_map(_map, "tight_map")
+    _map = tight_map(length=150, tightness=2.0, vertical_offset=20.0)
+    save_map(_map, "tight_map")
     # _map = wall_map(depth= 15)
     # save_map(_map, "wall_map")
-    _map = cluttered_map(objects=8, size=50)
-    save_map(_map, "cluttered_map")
+    # _map = cluttered_map(objects=8, size=50)
+    # save_map(_map, "cluttered_map")

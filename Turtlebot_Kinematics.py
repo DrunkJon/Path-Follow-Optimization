@@ -100,6 +100,9 @@ class KinematicModel():
             li.append(self.v2_min + np.random.rand() * v2_range) 
         assert max(li) <= max(self.v1_max, self.v2_max)
         return np.array(li)
+    
+    def max_speed(self):
+        return self.v1_max
 
 @dataclass
 class unicycleKin(KinematicModel):
@@ -182,3 +185,6 @@ class droneKin(KinematicModel):
             li.append(r * np.cos(w))
             li.append(r * np.sin(w))
         return np.array(li)
+    
+    def max_speed(self):
+        return self.max_speed

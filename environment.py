@@ -93,33 +93,37 @@ class Environment:
     max_scan_dist = 500
     robo_radius = 16
     scan_lines = 90
-    # values for fitness function
-    collision_penalty = 50000
-    goal_koeff = 50
-    speed_koeff = 3
-    obstacle_koeff = 200
-    heading_koeff = 0
-    comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
-    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, kinematic: KinematicModel = None, record = False, use_errors=False) -> None:
+    def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, kinematic: KinematicModel = None, 
+                 record = False, use_errors=False, map_obstacles = None, unknown_obstalces = None
+    ) -> None:
+        
         self.kinematic = kinematic if not kinematic is None else unicycleKin()
         self.use_erros= use_errors
-        self.map_obstacles = []
-        self.unknown_obstacles = []
+        self.map_obstacles = [] if map_obstacles is None else map_obstacles
+        self.unknown_obstacles = [] if unknown_obstalces is None else unknown_obstalces
         self.cur_ob = None
         self.robo_state = robo_state
         self.internal_offset = np.zeros_like(self.robo_state)
         # self.internal_offset = np.array([np.random.random() * 50, np.random.random() * 50, np.random.random() * (2*np.pi / 360)*10,])
         self.goal_pos = goal_pos
+        self.goal_final = goal_pos
+        self.goal_start = self.get_robo_pos()
+        self.goal_travel_vec = self.goal_final - self.goal_start
+        # calculates how fast goal could be reached at max speed and adds a small buffer time
+        self.goal_travel_time = (np.linalg.norm(self.goal_travel_vec) / self.kinematic.max_speed()) * 1.1
         self.record = record
         self.time = 0.0
+        self.sensor_fusion = None
         if record:
             self.data = pd.DataFrame({
                 "robo_x" : self.robo_state[0],
                 "robo_y" : self.robo_state[1],
                 "robo_deg" : self.robo_state[2],
-                "goal_x" : self.goal_pos[0],
-                "goal_y" : self.goal_pos[1],
+                "goal_x" : self.goal_start[0],
+                "goal_y" : self.goal_start[1],
+                "goal_dist" : 0,
+                "obst_dist" : self.get_obstacle_dist()
                 },
                 index = [self.time]
             )
@@ -142,12 +146,15 @@ class Environment:
             
     def record_state(self):
         if self.record:
+            goal_pos = self.get_goal_pos()
             self.data.loc[self.time] = {
                 "robo_x" : self.robo_state[0],
                 "robo_y" : self.robo_state[1],
                 "robo_deg" : self.robo_state[2],
-                "goal_x" : self.goal_pos[0],
-                "goal_y" : self.goal_pos[1],
+                "goal_x" : goal_pos[0],
+                "goal_y" : goal_pos[1],
+                "goal_dist" : np.linalg.norm(goal_pos - self.get_robo_pos()),
+                "obst_dist" : self.get_obstacle_dist()
             }
 
     def turn_robo_towards(self, point: np.ndarray):
@@ -173,6 +180,10 @@ class Environment:
 
     def set_goal_pos(self, pos: np.ndarray):
         self.goal_pos = pos
+
+    def get_goal_pos(self, dt:float = 0.0):
+        # get's dynamic goal pos for self.time + dt
+        return self.goal_start + self.goal_travel_vec * min((self.time + dt) / self.goal_travel_time, 1)
 
     def get_map_poly(self):
         return shapely.unary_union([shapely.LinearRing(obs.translate_corners()) for obs in self.map_obstacles + self.unknown_obstacles])
@@ -220,16 +231,18 @@ class Environment:
         return [internal_pos + dist * dire for i, (dist, dire) in enumerate(zip(scan_dists, directions))]
 
     def get_sensor_fusion(self, point_cloud = True) -> shapely.MultiPolygon:
-        scan_dists = self.get_distance_scans()
-        scan_cords = self.get_internal_scan_cords(scan_dists)
-        scan_point_cloud = shapely.unary_union([shapely.Point(cord) for cord,dist in zip(scan_cords, scan_dists) if dist <= self.max_scan_dist - 0.1])
-        if scan_point_cloud.is_empty:
-            print("scan empty")
-        map_poly = shapely.unary_union([shapely.Polygon(obs.translate_corners()) for obs in self.map_obstacles])
-        if point_cloud:
-            return scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
-        else:
-            return scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
+        if self.sensor_fusion is None:
+            scan_dists = self.get_distance_scans()
+            scan_cords = self.get_internal_scan_cords(scan_dists)
+            scan_point_cloud = shapely.unary_union([shapely.Point(cord) for cord,dist in zip(scan_cords, scan_dists) if dist <= self.max_scan_dist - 0.1])
+            if scan_point_cloud.is_empty:
+                print("scan empty")
+            map_poly = shapely.unary_union([shapely.Polygon(obs.translate_corners()) for obs in self.map_obstacles])
+            if point_cloud:
+                self.sensor_fusion = scan_point_cloud.union(map_poly.difference(shapely.Polygon(scan_cords)))
+            else:
+                self.sensor_fusion = scan_point_cloud.buffer(5, quad_segs = 3).union(map_poly.difference(shapely.Polygon(scan_cords)))
+        return self.sensor_fusion
         
     def get_obstacle_dist(self, sensor_fusion = None):
         state = self.get_internal_state()
@@ -287,8 +300,10 @@ class Environment:
 
     def from_json(json_string:str, kinematic:KinematicModel = None, record=False) -> "Environment":
         data = json.loads(json_string)
-        new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), kinematic=kinematic, record=record)
-        new_env.map_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]])
-        new_env.unknown_obstacles = list([Obstacle.from_dict(ob_dict) for ob_dict in data["unknowns"]])
+        new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), 
+                              kinematic=kinematic, record=record, 
+                              map_obstacles=list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]]),
+                              unknown_obstalces=list([Obstacle.from_dict(ob_dict) for ob_dict in data["unknowns"]])
+        )
         return new_env
     
