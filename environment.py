@@ -300,6 +300,10 @@ class Environment:
 
     def from_json(json_string:str, kinematic:KinematicModel = None, record=False) -> "Environment":
         data = json.loads(json_string)
+        return Environment.from_dict(data, kinematic, record)
+        
+    
+    def from_dict(data:dict, kinematic=None, record=False) -> "Environment":
         new_env = Environment(np.array(data["robo_state"], dtype=float), np.array(data["goal_pos"], dtype=float), 
                               kinematic=kinematic, record=record, 
                               map_obstacles=list([Obstacle.from_dict(ob_dict) for ob_dict in data["obstacles"]]),

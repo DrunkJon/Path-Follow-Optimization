@@ -1,8 +1,8 @@
 import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, Generator, Any
-
 from numpy.core.multiarray import array as array
+import pandas
 
 a = np.array([1,0])
 def rotation_matrix(angle):
@@ -188,3 +188,14 @@ class droneKin(KinematicModel):
     
     def max_speed(self):
         return self.max_speed
+    
+class AnimationModel(unicycleKin):
+    def __init__(self, df_path: str) -> None:
+        self.df = pandas.read_hdf(df_path)
+        self.i = 0
+        super().__init__()
+
+    def __call__(self, state: np.array, v1:float, v2:float, t:float) -> np.array:
+        col = self.df.iloc[self.i]
+        self.i += 1
+        return col["robo_x"], col["robo_y"], col["robo_deg"]

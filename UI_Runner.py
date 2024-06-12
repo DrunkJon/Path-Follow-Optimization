@@ -88,10 +88,7 @@ class UI_Runner(Runner):
             if self.CTRL == ControllMode.Player:
                 self.v, self.w = player_controll(keys, self.v, self.w, self.dt)
             elif self.CTRL == ControllMode.Animation:
-                # TODO: animation_gen
-                t = animation_controll(self.ENV, animation_gen=None)
-                if t < 0:
-                    break
+                pass
             
             presses = pygame.mouse.get_pressed(3)
             clicks = tuple(new and not old for new, old in zip(presses, old_presses))
@@ -134,30 +131,34 @@ if __name__ == "__main__":
     from dwa_controller import DWA_Controller
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
-    from Turtlebot_Kinematics import difDriveKin, unicycleKin
+    from Turtlebot_Kinematics import difDriveKin, unicycleKin, AnimationModel
+    import json
 
-    kinematic = unicycleKin()
-    kinematic.v1_min = -5.0
+    kinematic = AnimationModel("data\Map Experiment #2\9\MultiPSO_data.h5")
+    # kinematic.v1_min = -5.0
 
-    ENV = load_ENV("tight_map", kinematic=kinematic, record=False)
+    map_path = "data\Map Experiment #2\9\cluttered_8obs_50x50_known.json"
+    with open(map_path, "r") as file:
+        map_json_str = file.read()
+    ENV = Environment.from_json(map_json_str, kinematic, record=False)
 
     # length of one simulation tick
     dt = 0.1
     # length of time step of Optimizers
     virtual_dt = 0.75
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
-    horizon = 8
+    horizon = 7
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.MultiPSO
+    CTRL = ControllMode.Animation
 
     if CTRL == ControllMode.DWA:
         controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(5, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=5)
+        controller = Multi_PSO_Controller(7, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=7)
     elif CTRL == ControllMode.PSO:
         controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
-    elif CTRL == ControllMode.Player:
+    elif CTRL == ControllMode.Player or CTRL == ControllMode.Animation:
         controller = None
     else:
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")

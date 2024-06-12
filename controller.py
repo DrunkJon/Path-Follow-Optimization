@@ -5,7 +5,7 @@ from typing import Tuple
 class Controller():
 
     def __call__(self, ENV:Environment, dt:float) -> Tuple[float, float]:
-        pass
+        return 0.0, 0.0
 
 class PlayerController(Controller):
     # TODO: Player Controll

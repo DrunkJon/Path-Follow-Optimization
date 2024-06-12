@@ -74,7 +74,7 @@ def cluttered_map(objects= 5, size = 50, unknown=True):
     _map = base_map()
     for _ in range(objects):
         start_point = list(np.random.rand(2) * 400 + np.array([100, 100]))
-        _map["unknowns" if unknown else "objects"].append(
+        _map["unknowns" if unknown else "obstacles"].append(
             rectangle(start_point, size, size, np.random.rand() * 2*np.pi)
         )
     return _map

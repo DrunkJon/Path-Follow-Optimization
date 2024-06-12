@@ -32,6 +32,7 @@ class DWA_Controller(Controller):
                 best_v = (v1,v2)
         if best_v is None:
             print("ERROR could not find best velocity", best_fit)
+            return (-1.0, 0.0)
         else:
             print("best:", best_v, best_fit)
             return best_v
