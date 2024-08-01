@@ -38,7 +38,7 @@ class Multi_PSO_Controller(Controller):
     goal_koeff = 120
     goal_exp = 0.8
     speed_koeff = 5
-    obstacle_koeff = 600
+    obstacle_koeff = 350
     heading_koeff = 0
     comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
 
@@ -57,14 +57,13 @@ class Multi_PSO_Controller(Controller):
         self.global_best = self.individual_best[np.argmin(self.individual_fit)]
         self.global_fit = np.min(self.individual_fit)
 
-    @timer
-    def __call__(self, env: Environment, true_dt=0.05, sensor_fusion=None, verbose=True):
+    # @timer
+    def __call__(self, env: Environment, true_dt=0.05, sensor_fusion=None, verbose=False):
         if sensor_fusion is None:
             sensor_fusion == env.get_sensor_fusion()
         self.next_pop(env, sensor_fusion, true_dt)
         self.particle_swarm_optimization(env, iterations=self.iterations,sensor_fusion=sensor_fusion)
         if verbose: print(f"fit={self.global_fit} | {self.global_best[:2]}")
-        self.print_dist_info()
         return self.global_best[0], self.global_best[1]
     
     def print_dist_info(self):
@@ -75,10 +74,10 @@ class Multi_PSO_Controller(Controller):
                 dist = np.linalg.norm(full_pop[i] - full_pop[j])
                 dist_arr[i][j] = dist
                 dist_arr[j][i] = dist
-        pop_avg = np.average(dist_arr[:len(self.pop),:len(self.pop)])
-        charged_avg = np.average(dist_arr[len(self.pop):, :])
-        print("pop_avg:", round(pop_avg, 3))
-        print("chr_avg:", round(charged_avg, 3))
+        #pop_avg = np.average(dist_arr[:len(self.pop),:len(self.pop)])
+        #charged_avg = np.average(dist_arr[len(self.pop):, :])
+        #print("pop_avg:", round(pop_avg, 3))
+        #print("chr_avg:", round(charged_avg, 3))
     
     def shift_ind(self, ind, true_dt, maintain_course=False):
         # true_dt is the time an action will actually be performed,
@@ -113,8 +112,9 @@ class Multi_PSO_Controller(Controller):
     
     def get_trajectory(self, vec, initial_state):
         positions = [initial_state]
+        kin = self.kinematic.clone()
         for v,w in ind_to_vectorlist(vec):
-            positions.append(self.kinematic(positions[-1], v, w, self.dt))
+            positions.append(kin(positions[-1], v, w, self.dt))
         return positions
 
     def fitness(self, vec, env:Environment, sensor_fusion=None, discount=0.98):
@@ -126,8 +126,9 @@ class Multi_PSO_Controller(Controller):
         goal_sum = 0
         ob_fits = []
         speed_sum = 0
+        kin = self.kinematic.clone()
         for i, (v, w) in enumerate(trans_v_list):
-            cur_state = self.kinematic(cur_state, v, w, self.dt)
+            cur_state = kin(cur_state, v, w, self.dt)
             positions.append(cur_state)
             goal_fit, obst_fit, speed_fit = self.fitness_single(env, cur_state, sensor_fusion, np.array([v,w]), self.dt * (i + 1))
             if obst_fit >= self.collision_penalty:
@@ -181,7 +182,7 @@ class Multi_PSO_Controller(Controller):
             # print("TOTAL:", total_force)
             self.velocities[i + pop_offset] += total_force / self.inertia
 
-    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=5):
+    def particle_swarm_optimization(self, env:Environment, iterations=100, sensor_fusion=None, turbulence=10):
         # ATTENTION!: fitness is minimized
         if sensor_fusion == None:
             sensor_fusion = env.get_sensor_fusion()
@@ -189,7 +190,7 @@ class Multi_PSO_Controller(Controller):
         for iteration in range(iterations):
             new_pop = []
             new_charged_pop = []
-            self.apply_charged_forces(self.charged_pop, d=90)
+            self.apply_charged_forces(self.charged_pop, d=190)
             for i,ind in enumerate(self.pop + self.charged_pop):
                 if turbulence >= np.linalg.norm(self.velocities[i]) and iteration > 0:
                     new_ind = self.kinematic.generate_v_vector(self.horizon)
@@ -257,11 +258,12 @@ class PSO_Controller(Multi_PSO_Controller):
         v1,v2 = vec[0], vec[1]
         if sensor_fusion is None:
             sensor_fusion = env.get_sensor_fusion()
-        next_state = self.kinematic(cur_state, v1, v2, self.dt)
+        kin = self.kinematic.clone()
+        next_state = kin(cur_state, v1, v2, self.dt)
 
         if not sensor_fusion.is_empty:
             dist_fit = np.inf
-            for state in [self.kinematic(cur_state, v1, v2, self.dt / 5 * i) for i in range(5)]:
+            for state in [kin(cur_state, v1, v2, self.dt / 5 * i) for i in range(5)]:
                 pos_point = shapely.Point(state[:2])
                 dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
                 if dist <= 1:
@@ -271,11 +273,11 @@ class PSO_Controller(Multi_PSO_Controller):
             dist_fit = 0
 
         goal_vec = env.goal_pos - next_state[:2]
-        heading_vec = self.kinematic.heading(next_state, v1, v2)
+        heading_vec = kin.heading(next_state, v1, v2)
         #print("vecs:", goal_vec, heading_vec)
         heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * np.sign(v1)
 
-        speed_fit = self.kinematic.relativ_speed(v1,v2) * self.speed_koeff
+        speed_fit = kin.relativ_speed(v1,v2) * self.speed_koeff
 
         #print(f"({v}, {w}):\n{dist_fit}\n{heading_fit}\n{speed_fit}")
 

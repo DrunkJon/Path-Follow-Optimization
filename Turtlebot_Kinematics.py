@@ -53,6 +53,9 @@ class KinematicModel():
         # returns new state after applying v1 and v2 for t seconds in Kinematic model
         pass
 
+    def clone(self):
+        return type(self)()
+
     def v_spaces(self, samples) -> Tuple[np.linspace, np.linspace]:
         # util for creating linspaces of possible velocities
         return np.linspace(self.v1_min, self.v1_max, samples), np.linspace(self.v2_min, self.v2_max, samples)
@@ -89,7 +92,7 @@ class KinematicModel():
     
     # for models that care about agents direction
     def heading(self, state: np.array, v1:float, v2:float) -> np.array:
-        return move_turtle(state, 10, 0, 1) - state
+        return move_turtle(state, 10, 0, 0.1) - state
     
     def generate_v_vector(self, horizon) -> np.array:
         li = []
@@ -187,8 +190,9 @@ class droneKin(KinematicModel):
         return np.array(li)
     
     def max_speed(self):
-        return self.max_speed
+        return self.max_v
     
+
 class AnimationModel(unicycleKin):
     def __init__(self, df_path: str) -> None:
         self.df = pandas.read_hdf(df_path)
@@ -199,3 +203,94 @@ class AnimationModel(unicycleKin):
         col = self.df.iloc[self.i]
         self.i += 1
         return col["robo_x"], col["robo_y"], col["robo_deg"]
+    
+@dataclass
+class unicycleAcceleration(unicycleKin):
+    # actual velocity limits:
+    av1_min: float = -15
+    av1_max: float = 15
+    av2_min: float = -0.9
+    av2_max: float = 0.9
+    # v limits are actually acceleration limits for simpler implementation
+    v1_min: float = av1_min / 3
+    v1_max: float = av1_max / 3
+    v2_min: float = av2_min / 1
+    v2_max: float = av2_max / 1
+    # current speeds:
+    v1 = 0
+    v2 = 0
+
+    # this is an approximation of actual behavior
+    def __call__(self, state: np.array, v:float, w:float, t:float) -> np.array:
+        new_v1 = self.v1 + v*t
+        new_v2 = self.v2 + w*t
+        self.v1 = min(max(new_v1, self.av1_min), self.av1_max)
+        self.v2 = min(max(new_v2, self.av2_min), self.av2_max)
+        avg_v1 = (new_v1 + self.v1) / 2 
+        avg_v2 = (new_v2 + self.v2) / 2 
+        self.v1 = new_v1
+        self.v2 = new_v2
+        return move_turtle(state, avg_v1, avg_v2, t)
+    
+    def clone(self):
+        clone = unicycleAcceleration()
+        clone.v1 = self.v1
+        clone.v2 = self.v2
+        return clone
+    
+    def relativ_speed(self, v1, v2) -> float:
+        return self.v1 / self.av1_max
+    
+    def max_speed(self):
+        return self.av1_max
+    
+    def end_point(self):
+        stop_dt = max(self.v1 / self.v1_max, self.v2 / self.v2_max)
+        pass
+
+
+@dataclass
+class doneAcceleration(droneKin):
+    # actual maximum movement in any direction
+    amax_v: float = 22.2
+    # this is acceleration limits
+    max_v: float = amax_v / 5
+    # current speeds:
+    v1 = 0.0
+    v2 = 0.0
+
+    # this is an approximation of actual behavior
+    def __call__(self, state: np.array, v:float, w:float, t:float) -> np.array:
+        assert np.linalg.norm(np.array(v, w)) < self.max_v
+        new_vx = self.v1 + v*t
+        new_vy = self.v2 + w*t
+        vs, _ = self.snap_velocities(np.array([new_vx, new_vy]))
+        x, y, theta = state
+        new_state = np.array([
+                x + self.v1 * t + (v/2)*t**2,
+                y - self.v2 * t + (w/2)*t**2,
+                theta
+            ])
+        self.v1 = vs[0]
+        self.v2 = vs[1]
+        return new_state
+    
+    def clone(self):
+        clone = unicycleAcceleration()
+        clone.v1 = self.v1
+        clone.v2 = self.v2
+        return clone
+    
+    def relativ_speed(self, v1, v2) -> float:
+        return np.linalg.norm(np.array([self.v1, self.v2])) / self.max_v
+    
+    def heading(self, state: np.array, v1: float, v2: float) -> np.array:
+        vec = np.array([self.v1, self.v2, 0])
+        return vec / np.linalg.norm(vec)
+    
+    def max_speed(self):
+        return self.av1_max
+    
+    def end_point(self):
+        stop_dt = max(self.v1 / self.v1_max, self.v2 / self.v2_max)
+        pass

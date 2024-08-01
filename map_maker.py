@@ -88,9 +88,9 @@ def save_map(_map, name:str, directory = "./levels"):
 
 
 if __name__ == "__main__":
-    _map = tight_map(length=150, tightness=2.0, vertical_offset=20.0)
-    save_map(_map, "tight_map")
+    # _map = tight_map(length=150, tightness=2.0, vertical_offset=20.0)
+    # save_map(_map, "tight_map")
     # _map = wall_map(depth= 15)
     # save_map(_map, "wall_map")
-    # _map = cluttered_map(objects=8, size=50)
-    # save_map(_map, "cluttered_map")
+    _map = cluttered_map(objects=8, size=50, unknown=False)
+    save_map(_map, "cluttered_map")

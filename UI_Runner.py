@@ -1,5 +1,6 @@
 from Runner import Runner, Environment, ControllMode
 import pygame
+from Turtlebot_Kinematics import droneKin
 from ui import *
 
 
@@ -46,8 +47,8 @@ class UI_Runner(Runner):
         self.apply_control = apply_control
     
     def loop(self, visualize_fitness=True):
-        if visualize_fitness:
-            render_fitness(self.ENV, self.fit_surface)
+        if visualize_fitness and CTRL == ControllMode.MultiPSO:
+            render_fitness(self.ENV, self.controller, self.fit_surface)
             
         old_presses = (False, False, False)
         MODE = MouseMode.Robot
@@ -58,7 +59,7 @@ class UI_Runner(Runner):
                 if event.type == pygame.QUIT: flag = True
             if flag: break 
                 
-            if visualize_fitness:
+            if visualize_fitness and CTRL == ControllMode.MultiPSO:
                 self.screen.blit(self.fit_surface, (0,0))
             else:
                 self.screen.fill("white")
@@ -95,22 +96,28 @@ class UI_Runner(Runner):
             mouse_action(clicks, presses, MODE, self.ENV)
             old_presses = presses
             
-            print(self.v, self.w)
             self.step()
-            print(self.v, self.w)
+            if type(self.controller.kinematic) == unicycleAcceleration:
+                print("velocities:", self.controller.kinematic.v1, self.controller.kinematic.v2)
             
             # render potential movement radius
             if self.CTRL in [ControllMode.MultiPSO, ControllMode.PSO]:
                 render_radius(self.ENV.get_internal_state(), 22.2 * self.controller.horizon * self.controller.dt, self.screen)
-            # render intenal robo position in blue
+            # render internal robo position in blue
             render_robo(self.ENV.get_internal_state(), self.ENV.robo_radius, self.screen, color="blue")
             # renders obstacles, goal and actual robo position
             render_environment(self.ENV, self.screen)
             # creates red overlay of where robot thinks obstacles are
-            # render_sensor_fusion(self.ENV, self.screen, sensor_fusion=self.sensor)
+            render_sensor_fusion(self.ENV, self.screen, sensor_fusion=self.sensor)
             # blit(left_sub_screen, temp_surface, ENV.get_robo_pos())
             if self.CTRL in [ControllMode.MultiPSO, ControllMode.PSO]:
                 render_particle_trajectories(self.ENV, self.controller, self.screen)
+
+            if self.CTRL == ControllMode.DWA:
+                if visualize_fitness:
+                    live_dwa_fitness_redner(self.ENV, self.controller, self.screen)
+                render_dwa_trajectory(self.ENV, self.controller, self.screen, self.v, self.w)
+
             render_dir_line(self.screen, self.ENV.get_internal_state(), self.ENV.robo_radius)
 
             img = self.font.render(f'Mode:{MODE.to_str()}', True, "black")
@@ -131,16 +138,15 @@ if __name__ == "__main__":
     from dwa_controller import DWA_Controller
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
-    from Turtlebot_Kinematics import difDriveKin, unicycleKin, AnimationModel
+    from Turtlebot_Kinematics import difDriveKin, unicycleKin, AnimationModel, unicycleAcceleration
     import json
 
-    kinematic = AnimationModel("data\Map Experiment #2\9\MultiPSO_data.h5")
+    kinematic = unicycleKin()
     # kinematic.v1_min = -5.0
 
     map_path = "data\Map Experiment #2\9\cluttered_8obs_50x50_known.json"
-    with open(map_path, "r") as file:
-        map_json_str = file.read()
-    ENV = Environment.from_json(map_json_str, kinematic, record=False)
+    ENV = Environment.from_json_file(map_path, kinematic, record=False)
+    ENV.use_errors = True
 
     # length of one simulation tick
     dt = 0.1
@@ -149,10 +155,10 @@ if __name__ == "__main__":
     # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
     horizon = 7
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.Animation
+    CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
-        controller = DWA_Controller(kinematic=kinematic, virtual_dt=virtual_dt)
+        controller = DWA_Controller(kinematic=kinematic, virtual_dt=2.0)
     elif CTRL == ControllMode.MultiPSO:
         controller = Multi_PSO_Controller(7, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=7)
     elif CTRL == ControllMode.PSO:

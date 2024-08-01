@@ -2,6 +2,7 @@ from environment import Environment
 from enum import Enum, auto
 from controller import Controller
 from dwa_controller import DWA_Controller
+from Turtlebot_Kinematics import difDriveKin, droneKin, unicycleAcceleration, unicycleKin
 
 class ControllMode(Enum):
     Player = auto()
@@ -40,7 +41,16 @@ class Runner():
 
         
         if self.CTRL == ControllMode.DWA:
-            self.v, self.w = self.controller(self.ENV, dt=2.0, sensor_fusion=self.sensor)  
+            self.v, self.w = self.controller(self.ENV, dt=2.0, sensor_fusion=self.sensor) 
+            # THIS IS GIGA BAD BUT I CANT FIND THE ACTUAL PROBLEM 
+            if isinstance(self.controller.kinematic, difDriveKin):
+                print("is difDrive")
+                temp = self.w
+                self.w = self.v
+                self.v = temp
+            elif isinstance(self.controller.kinematic, unicycleKin):
+                print("is unyKin")
+                self.w *= -1
         elif self.CTRL == ControllMode.MultiPSO:
             self.v, self.w = self.controller(self.ENV, sensor_fusion=self.sensor, true_dt=self.dt)
         elif self.CTRL == ControllMode.PSO:

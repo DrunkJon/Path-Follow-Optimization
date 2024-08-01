@@ -9,9 +9,9 @@ from controller import Controller
 
 class DWA_Controller(Controller):
 
-    dist_koeff = -500
-    heading_koeff = 10
-    speed_koeff = 30
+    dist_koeff = -250
+    heading_koeff = 45
+    speed_koeff = 15
     comfort_dist = 3.0
 
     def __init__(self, samples=20, kinematic: KinematicModel = None, virtual_dt = 2.0) -> None:
@@ -26,47 +26,56 @@ class DWA_Controller(Controller):
         best_fit = -np.inf
         best_v = None
         for v1, v2 in self.kinematic.v_gen(self.samples):
-            fit = self.fitness(env, env.get_internal_state(), v1, v2, self.virtual_dt, sensor_fusion=sensor_fusion)
+            fit = sum(self.fitness(env, env.get_internal_state(), v1, v2, self.virtual_dt, sensor_fusion=sensor_fusion))
+            # print((v1, v2), "->", fit)
             if fit > best_fit:
                 best_fit = fit
                 best_v = (v1,v2)
         if best_v is None:
             print("ERROR could not find best velocity", best_fit)
-            return (-1.0, 0.0)
+            return (-5.0, 0.0)
         else:
-            print("best:", best_v, best_fit)
+            print("best:", best_fit, best_v)
             return best_v
         
     def fitness(self, env: Environment, cur_state: np.ndarray, v1:float, v2:float, dt, sensor_fusion=None):
         if sensor_fusion is None:
             sensor_fusion = env.get_sensor_fusion()
-        next_state = self.kinematic(cur_state, v1, v2, dt)
+        kin = self.kinematic.clone()
+        next_state = kin(cur_state, v1, v2, dt)
 
+        inbetweens = 5
         if not sensor_fusion.is_empty:
-            dist_fit = np.inf
+            dist_fits = []
             heading_fits = []
-            for state in [self.kinematic(cur_state, v1, v2, dt / 5 * i) for i in range(5)]:
+            last_state = cur_state
+            for i, state in [(i, kin(last_state, v1, v2, dt / inbetweens)) for i in range(1, inbetweens)]:
                 pos_point = shapely.Point(state[:2])
                 dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
                 if dist <= 1:
-                    return - np.inf
-                dist_fit = min(dist_fit, max(1 - (dist / self.comfort_dist), 0) * self.dist_koeff)
-                goal_vec = env.get_goal_pos(dt) - state[:2]
-                heading_vec = self.kinematic.heading(state, v1, v2)
-                heading_fits.append(
-                    (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) 
-                    * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
-                )
+                    dist_fits.append(-np.inf)
+                dist_fits.append(max(1 - (dist / self.comfort_dist), 0) * self.dist_koeff)
+                goal_vec = env.get_goal_pos(dt / inbetweens * i) - cur_state[0:2]
+                heading_vec = state - cur_state
+                if np.linalg.norm(goal_vec) != 0 and np.linalg.norm(heading_vec[:2]) != 0:
+                    heading_fits.append(
+                        ((goal_vec @ heading_vec[:2]) / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec[:2])) 
+                        * self.heading_koeff # * (np.sign(v1) if v1 != 0 else 1)
+                    )
+                else:
+                    heading_fits.append(0)
+                last_state = state
             heading_fit = np.average(heading_fits)
+            dist_fit = min(dist_fits)
         else:
             dist_fit = 0
             goal_vec = env.goal_pos - next_state[:2]
-            heading_vec = self.kinematic.heading(next_state, v1, v2)
-            heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff * (np.sign(v1) if v1 != 0 else 1)
+            heading_vec = kin.heading(next_state, v1, v2)
+            heading_fit = (goal_vec @ heading_vec[:2] / np.linalg.norm(goal_vec) / np.linalg.norm(heading_vec)) * self.heading_koeff # * (np.sign(v1) if v1 != 0 else 1)
 
-        speed_fit = self.kinematic.relativ_speed(v1, v2) * self.speed_koeff
-
-        return dist_fit + heading_fit + speed_fit
+        speed_fit = abs(kin.relativ_speed(v1, v2)) * self.speed_koeff
+        assert dist_fit < np.inf
+        return dist_fit, heading_fit, speed_fit
         
 
         

@@ -94,12 +94,17 @@ class Environment:
     robo_radius = 16
     scan_lines = 90
 
+    speed_error = 0.05
+    position_error = robo_radius / 3
+    deg_error = 3 * (2 * np.pi / 360)
+    sensor_error = 0.05
+
     def __init__(self, robo_state:np.ndarray, goal_pos:np.ndarray, kinematic: KinematicModel = None, 
                  record = False, use_errors=False, map_obstacles = None, unknown_obstalces = None
     ) -> None:
         
         self.kinematic = kinematic if not kinematic is None else unicycleKin()
-        self.use_erros= use_errors
+        self.use_errors= use_errors
         self.map_obstacles = [] if map_obstacles is None else map_obstacles
         self.unknown_obstacles = [] if unknown_obstalces is None else unknown_obstalces
         self.cur_ob = None
@@ -132,6 +137,7 @@ class Environment:
         return self.robo_state + self.internal_offset
         
     def step(self, v1, v2,dt):
+        print("stepping", (v1, v2))
         self.update_robo_state(v1,v2,dt)
         self.time += dt
         self.record_state()
@@ -165,9 +171,18 @@ class Environment:
 
     def update_robo_state(self, v1, v2, dt):
         old_state = self.robo_state
-        self.robo_state = self.kinematic(old_state, v1 * random_koeff(0.05 if self.use_erros else 0), v2 * random_koeff(0.05 if self.use_erros else 0), dt * random_koeff())
-        if self.use_erros:
-            self.internal_offset = self.kinematic(old_state + self.internal_offset, v1, v2, dt) - self.robo_state
+        if self.use_errors:
+            v1 *= random_koeff(self.speed_error)
+            v2 *= random_koeff(self.speed_error)
+        self.robo_state = self.kinematic(old_state, v1, v2, dt)
+        if self.use_errors:
+            print("changing offset")
+            x_off = np.random.normal(0, self.position_error)
+            y_off = np.random.normal(0, self.position_error)
+            theta_off = np.random.normal(0, self.deg_error)
+            self.internal_offset = np.array([x_off, y_off, theta_off])
+        self.sensor_fusion = None
+        print("offset", self.internal_offset)
 
     def get_robo_angle(self) -> float:
         return self.robo_state[2]
@@ -212,7 +227,7 @@ class Environment:
             scan_coords = self.get_scan_coords()
         distances = [np.linalg.norm(s - self.get_robo_pos()) for s in scan_coords]
         # add sens errors if scan dist < max dist
-        distances = [d * (random_koeff() if self.use_erros else 1) if d < self.max_scan_dist - 0.1 else d for d in distances]
+        distances = [d * (random_koeff(self.sensor_error) if self.use_errors else 1) if d < self.max_scan_dist - 0.1 else d for d in distances]
         return distances
     
     def scan(self, robo_pos: np.ndarray, direction: np.ndarray):
@@ -297,6 +312,11 @@ class Environment:
         }
         with open(f"./levels/{'_'.join(map(str,time.localtime()))}.json", "w") as file:
             file.write(json.dumps(data, indent=2))
+
+    def from_json_file(json_path:str, kinematric:KinematicModel = None, record=False) -> "Environment":
+        with open(json_path, "r") as file:
+            json_string = file.read()
+        return Environment.from_json(json_string, kinematric, record)
 
     def from_json(json_string:str, kinematic:KinematicModel = None, record=False) -> "Environment":
         data = json.loads(json_string)

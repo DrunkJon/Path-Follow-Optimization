@@ -1,10 +1,12 @@
 import pygame
+from dwa_controller import DWA_Controller
 from environment import Obstacle, Environment
 from enum import Enum, auto
 import numpy as np
-from Turtlebot_Kinematics import rotate
+from Turtlebot_Kinematics import KinematicModel, rotate
 import shapely
 from pso_controller import Multi_PSO_Controller
+from matplotlib import colormaps
 
 
 
@@ -118,24 +120,30 @@ def retransform_sensor(poly: shapely.MultiPolygon, env: Environment):
     return poly
 
 def render_sensor_fusion(env: Environment, surface: pygame.Surface, sensor_fusion=None):
+    debug = False
     # sensor fusion centered around internal state
     if sensor_fusion == None:
         sensor_fusion = env.get_sensor_fusion(point_cloud=True)
     # sensor fusion re-centered around actual state for visual clarity
     sensor_fusion = retransform_sensor(sensor_fusion, env)
     geoms = [sensor_fusion._geom] if not type(sensor_fusion) == shapely.GeometryCollection else sensor_fusion.geoms
+    drawn = False
     for geom in geoms:
-        if type(geom) == shapely.Polygon:
+        if type(geom) == shapely.Polygon and len(geom.interiors) == 0:
             coords = list(geom.exterior.coords)
             pygame.draw.polygon(surface, "red", coords)
+            drawn = True
         elif type(geom) == shapely.Point:
             coords = tuple(geom.coords)
             pygame.draw.circle(surface, "red", coords, 3)
+            drawn = True
+    if not drawn and debug:
+        print("???")
 
 def interpolate(left, right, ratio):
     return ((1-ratio) * left + ratio * right)
 
-def render_fitness(env: Environment, surface: pygame.Surface):
+def render_fitness(env: Environment, ctrl, surface: pygame.Surface):
     vals = []
     max_val, min_val = -np.inf, np.inf
     sens = env.get_sensor_fusion()
@@ -181,3 +189,39 @@ def render_particle_trajectories(env:Environment, ctrl: Multi_PSO_Controller, su
         pygame.draw.aalines(surface, "orange", False, traj)
     best_traj = [state[:2] for state in ctrl.get_trajectory(ctrl.global_best, cur_state)]
     pygame.draw.aalines(surface, "green", False, best_traj)
+
+def render_dwa_trajectory(env:Environment, ctrl: DWA_Controller, surface: pygame.Surface, v1, v2):
+    state = env.get_internal_state()
+    traj = [state]
+    kin = ctrl.kinematic.clone()
+    dt = ctrl.virtual_dt / 5
+    for _ in range(5):
+        traj.append(kin(traj[-1], v1, v2, dt))
+    traj = [state[:2] for state in traj]
+    pygame.draw.aalines(surface, "green", False, traj)
+
+def live_dwa_fitness_redner(env:Environment, ctrl: DWA_Controller, surface: pygame.surface, sensor_fusion = None):
+    if sensor_fusion is None:
+        sensor_fusion = env.get_sensor_fusion()
+    kin = ctrl.kinematic.clone()
+    v_pairs = list(kin.v_gen(20))
+    robo_state = env.get_internal_state()
+    xs = []
+    ys = []
+    fits = []
+    cmap = colormaps["viridis"]
+    for v, w in v_pairs:
+        end_state = kin(robo_state, v, w, 2.0)
+        dist, head, speed = ctrl.fitness(env, robo_state, v, w, 2.0, sensor_fusion)
+        if dist == - np.inf: 
+            dist = ctrl.dist_koeff
+        xs.append(end_state[0])
+        ys.append(end_state[1])
+        fits.append(dist + speed + head)
+    cs = cmap((np.array(fits)-min(fits)) / (max(fits)-min(fits)))
+    for x, y, c in zip(xs, ys, cs):
+        r = int(c[0]*256)
+        g = int(c[1]*256)
+        b = int(c[2]*256)
+        color = pygame.Color(r,g,b)
+        pygame.draw.circle(surface, color, (int(x),int(y)), 2.0)
