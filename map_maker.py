@@ -51,18 +51,18 @@ def base_map():
     _map["unknowns"] = []
     return _map
 
-def tight_map(tightness = 2.5, length = 100.0, vertical_offset = 0.0):
+def tight_map(tightness = 2.5, length = 100.0, vertical_offset = 0.0, unknown=True):
     _map = base_map()
     start_point1 = [300 - length / 2 , 0]
     start_point2 = [300 - length / 2 , 600]
     height = 300 - tightness * ROBO_RADIUS
-    _map["obstacles"].append(rectangle(start_point1, length, height - vertical_offset))
-    _map["obstacles"].append(rectangle(start_point2, length, -height - vertical_offset))
+    _map["unknowns" if unknown else "obstacles"].append(rectangle(start_point1, length, height - vertical_offset))
+    _map["unknowns" if unknown else "obstacles"].append(rectangle(start_point2, length, -height - vertical_offset))
     return _map
 
-def wall_map(height = 50.0, depth = 0.0):
+def wall_map(height = 50.0, depth = 0.0, unknown=True):
     _map = base_map()
-    _map["obstacles"].append(obstacle_from_list([
+    _map["unknowns" if unknown else "obstacles"].append(obstacle_from_list([
         [300 - depth, 300 - height],
         [300, 300],
         [300 - depth, 300 + height],

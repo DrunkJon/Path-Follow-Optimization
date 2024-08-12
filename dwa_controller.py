@@ -9,10 +9,11 @@ from controller import Controller
 
 class DWA_Controller(Controller):
 
-    dist_koeff = -250
+    dist_koeff = -500
     heading_koeff = 45
     speed_koeff = 15
     comfort_dist = 3.0
+    crash_dist = 1.2
 
     def __init__(self, samples=20, kinematic: KinematicModel = None, virtual_dt = 2.0) -> None:
         self.samples = samples
@@ -52,7 +53,7 @@ class DWA_Controller(Controller):
             for i, state in [(i, kin(last_state, v1, v2, dt / inbetweens)) for i in range(1, inbetweens)]:
                 pos_point = shapely.Point(state[:2])
                 dist = (pos_point.distance(sensor_fusion) / env.robo_radius) 
-                if dist <= 1:
+                if dist <= self.crash_dist:
                     dist_fits.append(-np.inf)
                 dist_fits.append(max(1 - (dist / self.comfort_dist), 0) * self.dist_koeff)
                 goal_vec = env.get_goal_pos(dt / inbetweens * i) - cur_state[0:2]
