@@ -16,7 +16,7 @@ horizon = 5
 ctrl_type = "DWA"
 if CTRL == ControllMode.Controller:
     if ctrl_type == "DWA":
-        controller = DWA_Controller()
+        controller = Multi_PSO_Controller()
     elif ctrl_type == "MultiPSO":
         controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
     elif ctrl_type == "PSO":

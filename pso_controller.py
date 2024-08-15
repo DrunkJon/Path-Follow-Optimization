@@ -218,7 +218,7 @@ class Multi_PSO_Controller(Controller):
         obstacle_dist = pos_point.distance(sensor_fusion) / env.robo_radius
         goal_dist = pos_point.distance(shapely.Point(goal_pos)) / env.robo_radius
         goal_fit = self.goal_koeff * (goal_dist ** self.goal_exp)
-        speed_fit = -self.speed_koeff * np.linalg.norm(v)
+        speed_fit = -self.speed_koeff * np.linalg.norm(v) / env.robo_radius
         if obstacle_dist <= self.crash_dist:
             return goal_fit, self.collision_penalty, speed_fit
         try:

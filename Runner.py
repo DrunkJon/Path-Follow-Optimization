@@ -96,7 +96,7 @@ if __name__ == "__main__":
     CTRL = ControllMode.MultiPSO
 
     if CTRL == ControllMode.DWA:
-        controller = DWA_Controller()
+        controller = Multi_PSO_Controller()
     elif CTRL == ControllMode.MultiPSO:
         controller = Multi_PSO_Controller(10, kinematic, horizon, virtual_dt, iterations)
     elif CTRL == ControllMode.PSO:

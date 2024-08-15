@@ -13,7 +13,7 @@ def main(ctrl_type, virtual_dt = 1.5, horizon=5, ENV=ENV):
     ### type: DWA; MultiPSO; SinglePSO
     if CTRL == ControllMode.Controller:
         if ctrl_type == "DWA":
-            controller = DWA_Controller()
+            controller = Multi_PSO_Controller()
         elif ctrl_type == "MultiPSO":
             controller = Multi_PSO_Controller(10, 22.2, -22.2, horizon, virtual_dt)
         elif ctrl_type == "PSO":

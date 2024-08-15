@@ -1,6 +1,5 @@
 from Runner import Runner, Environment, ControllMode
 import pygame
-from Turtlebot_Kinematics import droneKin
 from ui import *
 
 
@@ -138,29 +137,35 @@ if __name__ == "__main__":
     from dwa_controller import DWA_Controller
     from pso_controller import Multi_PSO_Controller, PSO_Controller
     from environment import load_ENV
-    from Turtlebot_Kinematics import difDriveKin, unicycleKin, AnimationModel, unicycleAcceleration
+    from Turtlebot_Kinematics import difDriveKin, unicycleKin, AnimationModel, unicycleAcceleration, droneKin
     import json
 
     kinematic = unicycleKin()
     # kinematic.v1_min = -5.0
 
-    map_path = "data\Map Experiment #2\9\cluttered_8obs_50x50_known.json"
+    map_path = "levels/cluttered_map.json"
+    # map_path = "data\Map Experiment #2\9\cluttered_8obs_50x50_known.json"
     ENV = Environment.from_json_file(map_path, kinematic, record=False)
-    ENV.use_errors = True
+    # ENV.use_errors = True
 
     # length of one simulation tick
-    dt = 0.1
+    dt = 0.16
     # length of time step of Optimizers
     virtual_dt = 0.75
-    # look ahead steps for MultiPSO | total lookahead time is virtual_dt * horizon
-    horizon = 7
+    # RHOPSOMP hyper params
+    particles = 7
+    horizon = 8
+    iterations = 8
+    # DWA hyper params
+    samples = 20
+    dwa_horizon = 5.0
     ### type: DWA; MultiPSO; PSO; Player
-    CTRL = ControllMode.MultiPSO
+    CTRL = ControllMode.DWA
 
     if CTRL == ControllMode.DWA:
-        controller = DWA_Controller(kinematic=kinematic, virtual_dt=2.0)
+        controller = DWA_Controller(samples=samples, kinematic=kinematic, virtual_dt=dwa_horizon)
     elif CTRL == ControllMode.MultiPSO:
-        controller = Multi_PSO_Controller(7, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=7)
+        controller = Multi_PSO_Controller(particles, kinematic=kinematic, horizon=horizon, dt=virtual_dt, iterations=iterations)
     elif CTRL == ControllMode.PSO:
         controller = PSO_Controller(10, kinematic=kinematic, dt=virtual_dt)
         horizon = 1
@@ -168,6 +173,16 @@ if __name__ == "__main__":
         controller = None
     else:
         raise Exception(f"<{CTRL}> is not a valid ctrl type for headless")
+    
+    # adjust controler fitness params
+    if CTRL == ControllMode.MultiPSO:
+        controller.goal_koeff = 1
+        controller.speed_koeff = 1
+        controller.obstacle_koeff = 1
+    elif CTRL == ControllMode.DWA:
+        controller.heading_koeff = 0.25
+        controller.speed_koeff = 1
+        controller.obstacle_koeff = -1
 
     # UI with Player Control
     runner = UI_Runner(ENV, CTRL, controller, dt=dt, apply_control=True)
