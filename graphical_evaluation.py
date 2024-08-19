@@ -7,6 +7,16 @@ import matplotlib.pyplot as plt
 from matplotlib import colormaps
 import matplotlib.patches as mpatches
 
+# set matplot params
+# plt.rc("xtick", labelsize=10)
+plt.rc("ytick", labelsize=6)
+plt.rc("xtick.major", pad=0.0)
+plt.rc("ytick.major", pad=0.0)
+plt.rc("xtick.major", size=1)
+plt.rc("ytick.major", size=1)
+# plt.rc("font", size=8)
+# plt.rc("figure.subplot", wspace=0.2)
+
 
 MAX_INDEX = 567
 DT = 0.1
@@ -74,6 +84,8 @@ def plot_eval_row(axs, total_df, color=None):
     lw = 0.85
 
     avg_goal_x, avg_goal_y, avg_obst, min_obst = get_eval_arrays(total_df, MAX_INDEX)
+    avg_goal_x = [val / 16 for val in avg_goal_x]
+    avg_goal_y = [val / 16 for val in avg_goal_y]
     axs[0].plot(avg_goal_x, color=color, lw=lw)
     axs[0].set_ylim(top = max(axs[0].get_ylim()[1], max(avg_goal_x) * 1.1))
 
@@ -161,10 +173,36 @@ def add_legend(top_right_ax, color_dict=PROCEDURAL_COLOR_DICT, label = "(o, g, s
     top_right_ax.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.)
 
 def add_labels(top_row):
-    top_row[0].set_title("avg x goal dist")
-    top_row[1].set_title("avg y goal dist")
-    top_row[2].set_title("avg obstacle dist")
-    top_row[3].set_title("min obstacle dist")
+    top_row[0].set_title("x to goal")
+    top_row[1].set_title("y to goal")
+    top_row[2].set_title("avg to obst.")
+    top_row[3].set_title("min to obst.")
+
+def print_numerical_eval(data_dict):
+    eval_dict = {}
+    for key, df in data_dict.items():
+        eval_dict[key] = get_eval_arrays(df, MAX_INDEX)
+
+    avgs = {}
+    criteria = ["goal_x", "goal_y", "obst_dist", "obst_min", "true_obst_min"]
+    sort_orders = [False, False, True, True, True]
+    keys = list(eval_dict.keys())
+    for key, (goal_xs, goal_ys, obst_dists, obst_mins) in eval_dict.items(): 
+        avgs[key] = {
+            "goal_x": np.average(goal_xs),
+            "goal_y": np.average(goal_ys),
+            "obst_dist": np.average(obst_dists),
+            "obst_min": np.average(obst_mins),
+            "true_obst_min": min(obst_mins)
+        }
+
+    for crit, accending in zip(criteria, sort_orders):
+        keys = sorted(keys, key = lambda x: avgs[x][crit], reverse=accending)
+        print("="*7, f"{crit}", "="*7)
+        for i,key in enumerate(keys):
+            print(f"#{i+1}:", key, avgs[key][crit])
+        print()
+
 
 
 if __name__ == '__main__':
@@ -173,14 +211,12 @@ if __name__ == '__main__':
         "long_MultiPSO_data": 'tab:blue',
         "short_MultiPSO_data": 'tab:cyan'
     }
-    tab_color_dict = {}
-    xkcd_color_dict = {
-    }
-    dir_name = "param Experiment #7"
+    dir_name = "param Experiment #6"
     depth = 1
     MAX_INDEX = 430 # 567 / 430
     DT = 0.16       # 0.1 / 0.16
 
     data_dict = read_data(f"./data/{dir_name}", depth)
-    plot_data_dict(data_dict, depth, fig_name=dir_name, color_dict=tab_color_dict)
+    print_numerical_eval(data_dict)
+    plot_data_dict(data_dict, depth, fig_name=dir_name, color_dict={})
     plt.show()

@@ -116,7 +116,8 @@ class Environment:
         self.goal_start = self.get_robo_pos()
         self.goal_travel_vec = self.goal_final - self.goal_start
         # calculates how fast goal could be reached at max speed and adds a small buffer time
-        self.goal_travel_time = (np.linalg.norm(self.goal_travel_vec) / self.kinematic.max_speed()) * 1.1
+        # goal moves at 75% max speed to allow agent to keep up even while avoiding obstacles
+        self.goal_travel_time = (np.linalg.norm(self.goal_travel_vec) / self.kinematic.max_speed()) * 1.33
         self.record = record
         self.time = 0.0
         self.sensor_fusion = None

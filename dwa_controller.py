@@ -9,9 +9,9 @@ from controller import Controller
 
 class DWA_Controller(Controller):
 
-    dist_koeff = -500
-    heading_koeff = 45
-    speed_koeff = 15
+    dist_koeff = -4
+    heading_koeff = 1.3
+    speed_koeff = 4
     comfort_dist = 3.0
     crash_dist = 1.2
 

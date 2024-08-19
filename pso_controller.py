@@ -35,10 +35,10 @@ class Multi_PSO_Controller(Controller):
     inertia = 1.3
     # values for fitness function
     collision_penalty = 50000
-    goal_koeff = 120
+    goal_koeff = 0.8
     goal_exp = 1
-    speed_koeff = 5
-    obstacle_koeff = 500
+    speed_koeff = 1
+    obstacle_koeff = 4
     heading_koeff = 0
     comfort_dist = 3.0    # * robo_radius (> 1, sonst ist nur collision relevant)
     crash_dist = 1.2
@@ -218,7 +218,7 @@ class Multi_PSO_Controller(Controller):
         obstacle_dist = pos_point.distance(sensor_fusion) / env.robo_radius
         goal_dist = pos_point.distance(shapely.Point(goal_pos)) / env.robo_radius
         goal_fit = self.goal_koeff * (goal_dist ** self.goal_exp)
-        speed_fit = -self.speed_koeff * np.linalg.norm(v) / env.robo_radius
+        speed_fit = -self.speed_koeff * self.kinematic.relativ_speed(v[0], v[1])
         if obstacle_dist <= self.crash_dist:
             return goal_fit, self.collision_penalty, speed_fit
         try:
